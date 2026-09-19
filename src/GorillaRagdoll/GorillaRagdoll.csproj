@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>GorillaRagdoll</AssemblyName>
+    <RootNamespace>GorillaRagdoll</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Version>0.2.0</Version>
+    <DebugType>portable</DebugType>
+    <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <NoWarn>$(NoWarn);CS0649;CS0169;CS0414</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GameDir>C:\SteamLibrary\steamapps\common\Gorilla Tag</GameDir>
+    <ManagedDir>$(GameDir)\Gorilla Tag_Data\Managed</ManagedDir>
+    <BepInExDir>$(GameDir)\BepInEx</BepInExDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- BepInEx -->
+    <Reference Include="BepInEx"><HintPath>$(BepInExDir)\core\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(BepInExDir)\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Game -->
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(ManagedDir)\Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- VRRig implements Fusion's INetworkStruct, so these are needed just to reference it -->
+    <Reference Include="Fusion.Runtime"><HintPath>$(ManagedDir)\Fusion.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Common"><HintPath>$(ManagedDir)\Fusion.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Sockets"><HintPath>$(ManagedDir)\Fusion.Sockets.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Realtime"><HintPath>$(ManagedDir)\Fusion.Realtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Unity"><HintPath>$(ManagedDir)\Fusion.Unity.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Photon (venue gate) -->
+    <Reference Include="PhotonUnityNetworking"><HintPath>$(ManagedDir)\PhotonUnityNetworking.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PhotonRealtime"><HintPath>$(ManagedDir)\PhotonRealtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Photon3Unity3D"><HintPath>$(ManagedDir)\Photon3Unity3D.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Unity -->
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ManagedDir)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <!-- GT runs the NEW Input System; legacy UnityEngine.Input throws on first use -->
+    <Reference Include="Unity.InputSystem"><HintPath>$(ManagedDir)\Unity.InputSystem.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(ManagedDir)\UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)\UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ManagedDir)\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.XRModule"><HintPath>$(ManagedDir)\UnityEngine.XRModule.dll</HintPath><Private>false</Private></Reference>
+    <!-- GT's snap turn lives in the XR Interaction Toolkit namespace and derives from its
+         LocomotionProvider; needed to pause it while the VR orbit owns the right stick -->
+    <Reference Include="Unity.XR.Interaction.Toolkit"><HintPath>$(ManagedDir)\Unity.XR.Interaction.Toolkit.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.XR.CoreUtils"><HintPath>$(ManagedDir)\Unity.XR.CoreUtils.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- URP: the mod-owned monitor camera has to carry the same renderer data as the source -->
+    <Reference Include="Unity.RenderPipelines.Universal.Runtime"><HintPath>$(ManagedDir)\Unity.RenderPipelines.Universal.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.RenderPipelines.Core.Runtime"><HintPath>$(ManagedDir)\Unity.RenderPipelines.Core.Runtime.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(NoDeploy)' != 'true'">
+    <MakeDir Directories="$(BepInExDir)\plugins\GorillaRagdoll" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExDir)\plugins\GorillaRagdoll" ContinueOnError="true" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) -> $(BepInExDir)\plugins\GorillaRagdoll" />
+  </Target>
+
+</Project>

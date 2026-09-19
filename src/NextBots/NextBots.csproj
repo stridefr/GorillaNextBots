@@ -1,0 +1,87 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>NextBots</AssemblyName>
+    <RootNamespace>NextBots</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.26.0</Version>
+    <DebugType>portable</DebugType>
+    <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <NoWarn>$(NoWarn);CS0649;CS0169;CS0414</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GameDir>C:\SteamLibrary\steamapps\common\Gorilla Tag</GameDir>
+    <ManagedDir>$(GameDir)\Gorilla Tag_Data\Managed</ManagedDir>
+    <BepInExDir>$(GameDir)\BepInEx</BepInExDir>
+  </PropertyGroup>
+
+  <!-- Utilla's DLL turns up under more than one name depending on how it was installed. Take
+       the normal one if it is there, then the doubled-up name some installers leave behind.
+       Override with -p:UtillaDll=... if yours lives somewhere else. -->
+  <PropertyGroup>
+    <UtillaDll Condition="'$(UtillaDll)' == '' And Exists('$(BepInExDir)\plugins\Utilla\Utilla.dll')">$(BepInExDir)\plugins\Utilla\Utilla.dll</UtillaDll>
+    <UtillaDll Condition="'$(UtillaDll)' == '' And Exists('$(BepInExDir)\plugins\Utilla.dll')">$(BepInExDir)\plugins\Utilla.dll</UtillaDll>
+    <UtillaDll Condition="'$(UtillaDll)' == ''">$(BepInExDir)\plugins\Utilla\Utilla.dll.dll.dll.dll</UtillaDll>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- BepInEx -->
+    <Reference Include="BepInEx"><HintPath>$(BepInExDir)\core\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(BepInExDir)\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Utilla (modded-lobby gate) -->
+    <Reference Include="Utilla"><HintPath>$(UtillaDll)</HintPath><Private>false</Private></Reference>
+
+    <!-- Game -->
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(ManagedDir)\Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="GT_CustomMapSupportRuntime"><HintPath>$(ManagedDir)\GT_CustomMapSupportRuntime.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Fusion (GT's NetworkComponent base type lives here) -->
+    <Reference Include="Fusion.Runtime"><HintPath>$(ManagedDir)\Fusion.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Common"><HintPath>$(ManagedDir)\Fusion.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Sockets"><HintPath>$(ManagedDir)\Fusion.Sockets.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Realtime"><HintPath>$(ManagedDir)\Fusion.Realtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Fusion.Unity"><HintPath>$(ManagedDir)\Fusion.Unity.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Photon -->
+    <Reference Include="PhotonUnityNetworking"><HintPath>$(ManagedDir)\PhotonUnityNetworking.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PhotonRealtime"><HintPath>$(ManagedDir)\PhotonRealtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Photon3Unity3D"><HintPath>$(ManagedDir)\Photon3Unity3D.dll</HintPath><Private>false</Private></Reference>
+
+    <!-- Unity -->
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AIModule"><HintPath>$(ManagedDir)\UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ManagedDir)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(ManagedDir)\UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(ManagedDir)\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.XRModule"><HintPath>$(ManagedDir)\UnityEngine.XRModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ManagedDir)\UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.AI.Navigation"><HintPath>$(ManagedDir)\Unity.AI.Navigation.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="NavMeshComponents"><HintPath>$(ManagedDir)\NavMeshComponents.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule"><HintPath>$(ManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.TextMeshPro"><HintPath>$(ManagedDir)\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.XR.CoreUtils"><HintPath>$(ManagedDir)\Unity.XR.CoreUtils.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="ZString"><HintPath>$(ManagedDir)\ZString.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <!-- Copy straight into the game's plugin folder on build -->
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(NoDeploy)' != 'true'">
+    <MakeDir Directories="$(BepInExDir)\plugins\NextBots" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExDir)\plugins\NextBots" ContinueOnError="true" />
+    <Message Importance="high" Text="Deployed $(TargetFileName) -> $(BepInExDir)\plugins\NextBots" />
+  </Target>
+
+</Project>
