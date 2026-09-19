@@ -172,6 +172,7 @@ namespace GorillaRagdoll.Config
         public static ConfigEntry<bool> HideRealRig;
         public static ConfigEntry<bool> CloneFace;
         public static ConfigEntry<Vector3> HeadRotationOffset;
+        public static ConfigEntry<string> MenuFont;
 
         // ---- network
         public static ConfigEntry<bool> ShareMyRagdoll;
@@ -377,6 +378,9 @@ namespace GorillaRagdoll.Config
             CloneFace = cfg.Bind(R, "CloneFace", true, "Copy the face onto the ragdoll.");
             HeadRotationOffset = cfg.Bind(R, "HeadRotationOffset", Vector3.zero,
                 "Euler correction if FirstPersonLocked looks sideways. The head bone forward axis is a rig detail.");
+            MenuFont = cfg.Bind(R, "MenuFont", "",
+                "Font for the F4 settings menu: the name of any font installed on this PC, e.g. Verdana or " +
+                "Coolvetica. Empty = Unity's default.");
 
             const string N = "10. Multiplayer";
             ShareMyRagdoll = cfg.Bind(N, "ShareMyRagdoll", true,

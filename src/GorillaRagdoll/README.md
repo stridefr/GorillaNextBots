@@ -40,6 +40,9 @@ Pass `-p:NoDeploy=true` to skip. Game path is set once in `GorillaRagdoll.csproj
 | Shift / Ctrl | Fly-cam boost / crawl |
 
 All bindings are configurable, and the VR button can be changed from the overlay's Ragdoll tab.
+The overlay's font is `MenuFont` under *8. Appearance*: the name of any font installed on the PC,
+or empty for Unity's own. IMGUI only reaches fonts through the operating system's font list, so
+a font installed "for this user only" may not be found; the log says so if it isn't.
 Keyboard only reaches the game **while the desktop window has focus** — i.e. never while you are
 wearing the headset — so the VR binding is the one that matters in play.
 

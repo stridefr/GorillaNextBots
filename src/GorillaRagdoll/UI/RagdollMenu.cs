@@ -58,12 +58,74 @@ namespace GorillaRagdoll.UI
         {
             if (!_visible || Controller == null) return;
 
-            GUI.depth = -100;
-            _rect = GUILayout.Window(WindowId, _rect, Draw, "Gorilla Ragdoll",
-                GUILayout.Width(420f), GUILayout.MinHeight(200f));
+            // The title bar is drawn here; everything inside the window is drawn later, in
+            // Draw, so the font is set in both places. The skin is shared with every other mod's
+            // IMGUI, so it is always put back.
+            var skin = GUI.skin;
+            var saved = skin.font;
+            var font = MenuFont();
+            if (font != null) skin.font = font;
+            try
+            {
+                GUI.depth = -100;
+                _rect = GUILayout.Window(WindowId, _rect, Draw, "Gorilla Ragdoll",
+                    GUILayout.Width(420f), GUILayout.MinHeight(200f));
+            }
+            finally { skin.font = saved; }
         }
 
         private void Draw(int id)
+        {
+            var skin = GUI.skin;
+            var saved = skin.font;
+            var font = MenuFont();
+            if (font != null) skin.font = font;
+            try { DrawContents(); }
+            finally { skin.font = saved; }
+        }
+
+        // ------------------------------------------------------------------ font
+
+        private Font _font;
+        private string _fontName;
+
+        /// <summary>
+        /// The font named in <c>MenuFont</c>, built from the fonts installed on this PC; null for
+        /// Unity's own. IMGUI can only use fonts through the operating system's font list - not
+        /// from a file, as the headset text does - so whether Unity can see the font is checked
+        /// and said in the log, rather than left to fall back silently.
+        /// </summary>
+        private Font MenuFont()
+        {
+            string name = (RagdollConfig.MenuFont.Value ?? "").Trim();
+            if (name == _fontName) return _font;
+            _fontName = name;
+            _font = null;
+            if (name.Length == 0) return null;
+
+            string match = null;
+            try
+            {
+                foreach (var n in Font.GetOSInstalledFontNames())
+                {
+                    if (string.Equals(n, name, System.StringComparison.OrdinalIgnoreCase)) { match = n; break; }
+                    if (match == null && n.StartsWith(name, System.StringComparison.OrdinalIgnoreCase)) match = n;
+                }
+            }
+            catch { /* the list is only a diagnostic */ }
+
+            try { _font = Font.CreateDynamicFontFromOSFont(match ?? name, 15); }
+            catch (System.Exception ex) { Plugin.Log.LogWarning("[Menu] font '" + name + "': " + ex.Message); }
+
+            if (match != null)
+                Plugin.Log.LogInfo("[Menu] font '" + match + "'");
+            else
+                Plugin.Log.LogWarning("[Menu] font '" + name + "' is not in Unity's list of installed fonts, so the " +
+                                      "menu may show Unity's default instead. Installing it 'for all users' fixes that.");
+            return _font;
+        }
+
+        private void DrawContents()
         {
             Header();
             _tab = GUILayout.Toolbar(_tab, Tabs);

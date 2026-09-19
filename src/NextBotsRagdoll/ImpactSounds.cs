@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BepInEx;
+using ExitGames.Client.Photon;
 using NextBots.Runtime;
+using Photon.Pun;
+using Photon.Realtime;
 using UnityEngine;
 
 namespace NextBotsRagdoll
@@ -23,8 +26,16 @@ namespace NextBotsRagdoll
     /// <para>Played the way Source plays them: a random variation that is never the same one
     /// twice running, pitch jittered 95-105%, volume from impact speed, and a global limit so a
     /// whole body landing at once is one thud rather than eight.</para>
+    ///
+    /// <para><b>Other players hear your body too.</b> Remote ragdolls are drawn from network
+    /// snapshots, never simulated, so nothing on another player's machine ever collides with
+    /// your body - it cannot make its own sounds there. Instead each impact is sent (event 152,
+    /// unreliable - one lost thud is not worth a resend), and played on arrival. Not <i>on
+    /// arrival</i> exactly: GorillaRagdoll draws a remote ragdoll 2.5 of its sender's intervals
+    /// in the past, so the message carries its send time and the sender's rate, and the sound is
+    /// held back by the same amount. The thud lands when they see the body land.</para>
     /// </summary>
-    public sealed class ImpactSounds : MonoBehaviour
+    public sealed class ImpactSounds : MonoBehaviour, IOnEventCallback
     {
         public static ImpactSounds Instance { get; private set; }
 
@@ -32,6 +43,22 @@ namespace NextBotsRagdoll
         public const string Hard = "impact_hard";
         public const string Break = "break";
         public const string Hit = "hit";
+        public const string Death = "death";
+
+        /// <summary>Clear of GT's own codes, NextBots' 140-146 and GorillaRagdoll's 150-151.</summary>
+        public const byte EvImpact = 152;
+        private const byte NetProtocol = 1;
+        private const int ImpactBytes = 1 + 8 + 12 + 4 + 1;
+
+        private struct Pending
+        {
+            public double At;
+            public Vector3 Position;
+            public float Speed;
+        }
+
+        private readonly List<Pending> _pending = new List<Pending>(8);
+        private readonly byte[] _packet = new byte[ImpactBytes];
 
         public static string Directory =>
             Path.Combine(Paths.PluginPath, Path.Combine("NextBotsRagdoll", "sounds"));
@@ -73,7 +100,19 @@ namespace NextBotsRagdoll
                 _voices[i] = src;
             }
 
+            if (BridgeConfig.ImportFromSourceGames.Value) SourceSoundImport.FillEmptySets(Directory);
             Load();
+        }
+
+        private void OnEnable()
+        {
+            try { PhotonNetwork.AddCallbackTarget(this); }
+            catch (Exception ex) { Plugin.Log.LogWarning("[Sound] no Photon callbacks: " + ex.Message); }
+        }
+
+        private void OnDisable()
+        {
+            try { PhotonNetwork.RemoveCallbackTarget(this); } catch { /* shutting down */ }
         }
 
         private void OnDestroy()
@@ -88,7 +127,7 @@ namespace NextBotsRagdoll
             try
             {
                 System.IO.Directory.CreateDirectory(Directory);
-                foreach (var set in new[] { Soft, Hard, Break, Hit })
+                foreach (var set in new[] { Soft, Hard, Break, Hit, Death })
                     System.IO.Directory.CreateDirectory(Path.Combine(Directory, set));
 
                 var readme = Path.Combine(Directory, "README.txt");
@@ -116,7 +155,7 @@ namespace NextBotsRagdoll
 
             var summary = new System.Text.StringBuilder("[Sound] ");
             foreach (var kv in _sets) summary.Append(kv.Key).Append('=').Append(kv.Value.Count).Append(' ');
-            if (Count(Soft) + Count(Hard) + Count(Break) + Count(Hit) == 0)
+            if (Count(Soft) + Count(Hard) + Count(Break) + Count(Hit) + Count(Death) == 0)
                 summary.Append("| no WAVs yet - see ").Append(Path.Combine(Directory, "README.txt"));
             Plugin.Log.LogInfo(summary.ToString());
         }
@@ -135,13 +174,20 @@ namespace NextBotsRagdoll
         /// </summary>
         public void OnImpact(Vector3 position, float speed)
         {
-            if (!BridgeConfig.SoundsEnabled.Value) return;
             if (Time.time - _lastImpactAt < MinGap) return;
+            if (speed < BridgeConfig.SoftSpeed.Value) return;
+            _lastImpactAt = Time.time;
 
+            if (BridgeConfig.SoundsEnabled.Value) PlayImpact(position, speed);
+            Broadcast(position, speed);
+        }
+
+        private bool PlayImpact(Vector3 position, float speed)
+        {
             float soft = BridgeConfig.SoftSpeed.Value;
             float hard = Mathf.Max(soft + 0.1f, BridgeConfig.HardSpeed.Value);
             float brk = Mathf.Max(hard + 0.1f, BridgeConfig.BreakSpeed.Value);
-            if (speed < soft) return;
+            if (speed < soft) return false;
 
             string set;
             float volume;
@@ -161,8 +207,100 @@ namespace NextBotsRagdoll
                 volume = Mathf.Lerp(0.25f, 0.7f, Mathf.InverseLerp(soft, hard, speed));
             }
 
-            if (Play(set, position, volume, 1f)) _lastImpactAt = Time.time;
+            return Play(set, position, volume, 1f);
         }
+
+        /// <summary>
+        /// Garry's Mod's <c>Player.Death</c>: a random one of three, at its soundscript volume of
+        /// 0.8. Silent if the death folder is empty - a stand-in from another set would say
+        /// something different from what happened.
+        /// </summary>
+        public void PlayDeath(Vector3 position)
+        {
+            if (!BridgeConfig.SoundsEnabled.Value) return;
+            Play(Death, position, 0.8f, 1f);
+        }
+
+        // ================================================================== sharing
+
+        private void Broadcast(Vector3 position, float speed)
+        {
+            if (!BridgeConfig.ShareSounds.Value) return;
+            try
+            {
+                if (!PhotonNetwork.InRoom || !GorillaRagdoll.Runtime.Venue.Allowed) return;
+                if (!GorillaRagdoll.Config.RagdollConfig.ShareMyRagdoll.Value) return;
+
+                using (var ms = new MemoryStream(_packet))
+                using (var w = new BinaryWriter(ms))
+                {
+                    w.Write(NetProtocol);
+                    w.Write(PhotonNetwork.Time);
+                    w.Write(position.x); w.Write(position.y); w.Write(position.z);
+                    w.Write(speed);
+                    w.Write((byte)Mathf.Clamp(Mathf.RoundToInt(GorillaRagdoll.Config.RagdollConfig.NetSendRate.Value), 1, 255));
+                }
+                PhotonNetwork.RaiseEvent(EvImpact, _packet,
+                    new RaiseEventOptions { Receivers = ReceiverGroup.Others },
+                    new SendOptions { Reliability = false });
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning("[Sound] could not share an impact: " + ex.Message); }
+        }
+
+        public void OnEvent(EventData e)
+        {
+            if (e.Code != EvImpact) return;
+            if (!BridgeConfig.SoundsEnabled.Value || !BridgeConfig.HearOthers.Value) return;
+
+            var payload = e.CustomData as byte[];
+            if (payload == null || payload.Length < ImpactBytes) return;
+
+            try
+            {
+                if (!GorillaRagdoll.Runtime.Venue.Allowed) return;
+                if (!GorillaRagdoll.Config.RagdollConfig.ShowOtherRagdolls.Value) return;
+
+                using (var r = new BinaryReader(new MemoryStream(payload)))
+                {
+                    if (r.ReadByte() != NetProtocol) return;
+                    double sent = r.ReadDouble();
+                    var pos = new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
+                    float speed = r.ReadSingle();
+                    int hz = Mathf.Max(1, r.ReadByte());
+
+                    if (!Finite(pos.x) || !Finite(pos.y) || !Finite(pos.z) || !Finite(speed)) return;
+                    if (_pending.Count >= 32) return;
+
+                    _pending.Add(new Pending
+                    {
+                        At = sent + 2.5 / hz,
+                        Position = pos,
+                        Speed = Mathf.Clamp(speed, 0f, 60f)
+                    });
+                }
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning("[Sound] bad impact packet from " + e.Sender + ": " + ex.Message); }
+        }
+
+        private void Update()
+        {
+            if (_pending.Count == 0) return;
+
+            double now;
+            try { now = PhotonNetwork.Time; }
+            catch { now = 0; }
+
+            for (int i = _pending.Count - 1; i >= 0; i--)
+            {
+                var p = _pending[i];
+                // Due, or so far off that the clocks disagree - play it rather than hold it forever.
+                if (now < p.At && p.At - now < 2.0) continue;
+                _pending.RemoveAt(i);
+                PlayImpact(p.Position, p.Speed);
+            }
+        }
+
+        private static bool Finite(float f) => !float.IsNaN(f) && !float.IsInfinity(f);
 
         /// <summary>The bot connecting. Deeper and harder for heavier bots, via the profile.</summary>
         public void OnBotHit(Vector3 position, BotProfile profile)
@@ -219,6 +357,7 @@ namespace NextBotsRagdoll
         private static string Fallback(string set)
         {
             if (string.Equals(set, Soft, StringComparison.OrdinalIgnoreCase)) return null;
+            if (string.Equals(set, Death, StringComparison.OrdinalIgnoreCase)) return null;
             if (string.Equals(set, Hard, StringComparison.OrdinalIgnoreCase)) return Soft;
             if (string.Equals(set, Break, StringComparison.OrdinalIgnoreCase)) return Hard;
             if (string.Equals(set, Hit, StringComparison.OrdinalIgnoreCase)) return Break;
@@ -236,6 +375,10 @@ one is picked at random each time. File names do not matter.
   impact_hard/   a proper landing
   break/         a very hard landing - the bone crunch
   hit/           the moment a bot slams into you
+  death/         someone gets caught (Garry's Mod's Player.Death)
+
+If you own Garry's Mod or Half-Life 2 on Steam, EMPTY folders here are filled for you on
+startup from your own install (ImportFromSourceGames in the config). Nothing is downloaded.
 
 Any other folder you make is a set too, and a bot profile can use it by name
 (""hitSound"": ""hit_heavy"" in ../bots/NAME.json).
@@ -249,6 +392,7 @@ VPKEdit or GCFScape and export these (names from HL2's physics soundscripts):
   impact_hard/   sound/physics/body/body_medium_impact_hard1.wav ... hard6.wav
   break/         sound/physics/body/body_medium_break2.wav ... break4.wav
   hit/           sound/physics/flesh/flesh_impact_hard1.wav ... hard6.wav
+  death/         sound/player/pl_pain5.wav, pl_pain6.wav, pl_pain7.wav
 
 If a file is refused in the BepInEx log, it is compressed (some Source WAVs are ADPCM).
 Open it in Audacity and export as WAV, signed 16-bit PCM.

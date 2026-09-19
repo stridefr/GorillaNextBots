@@ -17,7 +17,14 @@ namespace NextBots.Runtime
     {
         public class Skin
         {
+            /// <summary>Upper-cased key: what the lobby matches skins by.</summary>
             public string Name;
+
+            /// <summary>
+            /// The image's file name without its extension, as the person who named it wrote it
+            /// ("Obunga", not "OBUNGA"). What the death log shows.
+            /// </summary>
+            public string DisplayName;
             public Texture2D Texture;
 
             /// <summary>Billboard height in metres. Width follows the image aspect.</summary>
@@ -92,6 +99,13 @@ namespace NextBots.Runtime
             return -1;
         }
 
+        /// <summary>The skin with this name, ignoring case; null if there is none.</summary>
+        public static Skin Find(string name)
+        {
+            int i = IndexOf(name);
+            return i >= 0 ? _skins[i] : null;
+        }
+
         public static void Reload()
         {
             _loaded = false;
@@ -163,6 +177,7 @@ namespace NextBots.Runtime
                         _skins.Add(new Skin
                         {
                             Name = tex.name.ToUpperInvariant(),
+                            DisplayName = tex.name,
                             Texture = tex,
                             AspectWidthOverHeight = tex.height > 0 ? (float)tex.width / tex.height : 1f,
                             Clip = LoadClipBeside(file, tex.name)
@@ -213,6 +228,7 @@ namespace NextBots.Runtime
             _skins.Add(new Skin
             {
                 Name = name.ToUpperInvariant(),
+                DisplayName = name,
                 Texture = frames[0],
                 Frames = frames,
                 FrameDelays = delays,
@@ -266,7 +282,7 @@ namespace NextBots.Runtime
             tex.SetPixels32(pixels);
             tex.Apply(false, false);
 
-            return new Skin { Name = "PLACEHOLDER", Texture = tex, AspectWidthOverHeight = 1f };
+            return new Skin { Name = "PLACEHOLDER", DisplayName = "Placeholder", Texture = tex, AspectWidthOverHeight = 1f };
         }
     }
 }

@@ -14,14 +14,15 @@ multiplayer, still need testing in game.
 | 3 | Per-bot weights | Built (0.2) | bridge |
 | 4 | Impact sounds (Source) | Built (0.2) | bridge |
 | 5 | Jumpscare on catch | Planned | bridge |
-| 6 | Exact hit data over the network | Planned | NextBots + bridge |
+| 6 | Exact hit data over the network | Built (0.3) | NextBots + bridge |
 | 7 | Bots bump bodies | Planned | bridge |
 | 8 | Arm bracing | Planned | GorillaRagdoll |
 | 9 | Survival rounds | Planned | NextBots |
 | 10 | Physgun | Planned | new plugin |
-| 11 | Other players hear your impacts | Planned | bridge |
+| 11 | Other players hear your impacts | Built (0.3) | bridge |
 | 12 | Host-synced knockback settings | Planned | bridge |
 | 13 | Weight affects how a bot moves | Planned | NextBots |
+| 14 | Death log (killfeed) | Built (NextBots 0.27) | NextBots |
 
 ---
 

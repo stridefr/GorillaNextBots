@@ -26,7 +26,7 @@ namespace NextBots
     {
         public const string Guid = "com.stridefr.nextbots";
         public const string Name = "NextBots";
-        public const string Version = "0.26.0";
+        public const string Version = "0.27.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -38,6 +38,7 @@ namespace NextBots
         public static ConfigEntry<bool> CfgLogInput;
         public static ConfigEntry<bool> CfgDesktopConsole;
         public static ConfigEntry<bool> CfgUseGesture;
+        public static ConfigEntry<string> CfgFont;
 
         private GameObject _host;
         private BotManager _bots;
@@ -64,6 +65,10 @@ namespace NextBots
             CfgLogInput = Config.Bind("Debug", "LogInput", false,
                 "Log what the controllers are actually reporting, once per second and only on " +
                 "change. Turn off once input is working.");
+            CfgFont = Config.Bind("UI", "Font", "",
+                "Font for the mod's text in the headset - the wrist panel and the kill cam screen. The name " +
+                "of any font installed on this PC, e.g. Verdana, Impact or Coolvetica. Empty = the game's own " +
+                "(Liberation Sans). Needs a restart. The death log has its own font, in killfeed.json.");
             CfgDesktopConsole = Config.Bind("Debug", "DesktopConsole", true,
                 "On-monitor control panel and bot telemetry (F1). Lets the mod be driven and " +
                 "debugged without a headset.");
@@ -169,6 +174,9 @@ namespace NextBots
 
             _input = _host.AddComponent<ModInput>();
             _input.Menu = _menu;
+
+            // The death log: every catch in the lobby, in the headset and on the monitor.
+            _host.AddComponent<KillFeed>();
 
             if (CfgDesktopConsole.Value)
             {

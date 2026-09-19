@@ -15,11 +15,11 @@ namespace NextBotsRagdoll
     /// Turns a nextbot catch into a knockdown: ragdoll, thrown the way the bot hit you, then back
     /// on your feet - or back at spawn, if the host has <c>DEATH ON CATCH</c> on.
     ///
-    /// <para><b>Where the hit comes from.</b> On the host, the catching bot is handed to us
-    /// directly. On a guest the network message only carries "you were caught", so the hitter
-    /// is taken to be the nearest bot - which at catch range, a metre or so, it all but always
-    /// is. Its velocity is measured here by differencing positions every frame rather than read
-    /// off the bot, because a guest's bots have no agent to ask; one code path for both.</para>
+    /// <para><b>Where the hit comes from.</b> NextBots' catch message carries it: which bot,
+    /// where it was and how fast it was moving when it connected, measured by the host. Every
+    /// client gets the same numbers, so a guest is thrown exactly as the host saw the hit. The
+    /// nearest-bot guess and this class's own velocity tracking remain only as fallbacks - for
+    /// the F5 test, and for a message that somehow arrives without a position.</para>
     ///
     /// <para><b>Why the knockdown waits a frame.</b> A guest's catch arrives inside Photon's
     /// dispatch, not in Update. <c>RagdollController.Collapse</c> has only ever been exercised
@@ -51,7 +51,15 @@ namespace NextBotsRagdoll
             public NextBot Bot;
             public Vector3 From;
             public Vector3 Velocity;
+
+            /// <summary>The bot's image name, for the kill cam and the log.</summary>
             public string By;
+
+            /// <summary>The bot's skin key, for its weight file.</summary>
+            public string Skin;
+
+            /// <summary>DEATH ON CATCH as the host had it for this catch.</summary>
+            public bool Death;
         }
 
         /// <summary>The puppet that already has impact listeners on it.</summary>
@@ -104,12 +112,19 @@ namespace NextBotsRagdoll
         {
             try { PhotonNetwork.AddCallbackTarget(this); }
             catch (System.Exception ex) { Plugin.Log.LogWarning("[Bridge] no Photon callbacks: " + ex.Message); }
+
+            CatchEffects.Caught += OnAnyCatch;
+            CatchEffects.LocalCatchHandler = OnLocalCatch;
         }
 
         private void OnDisable()
         {
             try { PhotonNetwork.RemoveCallbackTarget(this); } catch { /* shutting down */ }
             ReleaseExclusions();
+
+            CatchEffects.Caught -= OnAnyCatch;
+            if (CatchEffects.LocalCatchHandler == (System.Func<CatchInfo, bool>)OnLocalCatch)
+                CatchEffects.LocalCatchHandler = null;
         }
 
         private void OnDestroy()
@@ -120,21 +135,52 @@ namespace NextBotsRagdoll
         // ================================================================== the catch
 
         /// <summary>
-        /// Called from the <c>CatchEffects.Apply</c> prefix. Returns true if the bridge has taken
-        /// the catch, in which case NextBots' own effect must not run.
+        /// Every catch in the lobby, on every client.
+        ///
+        /// <para>Someone else's catch is heard where their body is: the bot connecting, and -
+        /// depending on <c>DeathSound</c> - Garry's Mod's death sound. The host also notes who
+        /// went down, so its bots leave them alone. Our own catch is handled by
+        /// <see cref="OnLocalCatch"/>, which plays the same sounds from the ragdoll.</para>
         /// </summary>
-        public bool OnCatch(int actor, NextBot bot)
+        private void OnAnyCatch(CatchInfo info)
         {
-            if (!BridgeConfig.Enabled.Value) return false;
+            if (!BridgeConfig.Enabled.Value || info == null || info.VictimIsLocal) return;
 
-            if (!IsLocal(actor))
+            var down = Remote(info.VictimActor);
+            down.Down = true;
+            down.CaughtAt = Time.time;
+
+            var sounds = ImpactSounds.Instance;
+            if (sounds == null || !BridgeConfig.HearOthers.Value) return;
+
+            Vector3 at;
+            if (!PlayerNames.TryGetPosition(info.VictimActor, out at)) at = info.VictimPosition;
+            var profile = BotProfiles.Get(info.BotSkin);
+            sounds.OnBotHit(at, profile);
+            if (WantsDeathSound(info.Death)) sounds.PlayDeath(at);
+        }
+
+        private static bool WantsDeathSound(bool killed)
+        {
+            switch (BridgeConfig.DeathSound.Value)
             {
-                // Only the host sees these. Remember who went down so the bots leave them be;
-                // NextBots' original only logs for a remote actor, so let it run.
-                Remote(actor).Down = true;
-                Remote(actor).CaughtAt = Time.time;
-                return false;
+                case DeathSoundMode.EveryCatch: return true;
+                case DeathSoundMode.KilledOnly: return killed;
+                default: return false;
             }
+        }
+
+        /// <summary>
+        /// Replaces NextBots' own effect when the victim is us. Returns true if the bridge has
+        /// taken the catch; false leaves it to NextBots (haptics, and spawn with DEATH ON CATCH).
+        ///
+        /// <para>Everything about the hit comes from the host's message: which bot, where it was
+        /// and how fast it was going when it connected. A guest no longer has to guess the
+        /// nearest bot, and the throw matches what the host saw.</para>
+        /// </summary>
+        private bool OnLocalCatch(CatchInfo info)
+        {
+            if (!BridgeConfig.Enabled.Value || info == null) return false;
 
             var ctrl = GorillaRagdoll.Plugin.Controller;
             if (ctrl == null)
@@ -147,13 +193,29 @@ namespace NextBotsRagdoll
             // swallowing it and doing nothing.
             if (!ctrl.IsRagdolled && !GorillaRagdoll.Runtime.Venue.Allowed) return false;
 
-            var me = PlayerPosition(ctrl);
-            var hitter = bot != null ? bot : NearestBot(me);
+            var bot = info.Bot;
+            Vector3 from = info.BotPosition;
+            Vector3 vel = info.BotVelocity;
 
-            _pending = hitter != null
-                ? new Hit { Bot = hitter, From = hitter.Center, Velocity = VelocityOf(hitter), By = hitter.SkinName }
-                // No bot to be found: assume it came from where you were looking.
-                : new Hit { From = me + Flat(ViewForward()), Velocity = Vector3.zero, By = "?" };
+            // A message that somehow carried no position: fall back to our own copy of the bot,
+            // then to "it came from where you were looking".
+            if (from == Vector3.zero)
+            {
+                var me = PlayerPosition(ctrl);
+                if (bot == null) bot = NearestBot(me);
+                from = bot != null ? bot.Center : me + Flat(ViewForward());
+                if (bot != null && vel == Vector3.zero) vel = VelocityOf(bot);
+            }
+
+            _pending = new Hit
+            {
+                Bot = bot,
+                From = from,
+                Velocity = vel,
+                By = string.IsNullOrEmpty(info.BotName) ? "?" : info.BotName,
+                Skin = info.BotSkin,
+                Death = info.Death
+            };
             return true;
         }
 
@@ -184,8 +246,25 @@ namespace NextBotsRagdoll
                 vel = towards.sqrMagnitude > 1e-4f ? towards.normalized * speed : -Flat(ViewForward()) * speed;
             }
 
-            _pending = new Hit { Bot = bot, From = from, Velocity = vel, By = bot != null ? bot.SkinName : "TEST" };
-            Plugin.Log.LogInfo("[Bridge] test catch (" + BridgeConfig.TestCatchKey.Value + ") by '" + _pending.Value.By + "'");
+            // Through NextBots' real catch path, on this client only: the death log, the sounds
+            // and the knockdown all see exactly what a real catch would give them.
+            int actor = LocalActor();
+            var info = new CatchInfo
+            {
+                VictimActor = actor,
+                VictimName = PlayerNames.Of(actor),
+                BotNetId = bot != null ? bot.NetId : -1,
+                BotSkin = bot != null ? bot.SkinName : "",
+                BotName = bot != null ? bot.DisplayName : "TEST",
+                BotPosition = from,
+                BotVelocity = vel,
+                VictimPosition = me,
+                Death = NextBotSettings.Active.DeathEnabled,
+                Time = CatchEffects.Now(),
+                Bot = bot
+            };
+            Plugin.Log.LogInfo("[Bridge] test catch (" + BridgeConfig.TestCatchKey.Value + ") by '" + info.BotName + "'");
+            CatchEffects.Dispatch(info);
         }
 
         // ================================================================== frame
@@ -239,26 +318,30 @@ namespace NextBotsRagdoll
                 // The ragdoll refused; its Status says why. Do what NextBots would have done.
                 Plugin.Log.LogWarning("[Bridge] could not ragdoll (" + (ctrl != null ? ctrl.Status : "no controller") +
                                       ") - falling back to NextBots' catch");
-                if (NextBotSettings.Active.DeathEnabled) CatchEffects.SendToSpawn();
+                if (hit.Death) CatchEffects.SendToSpawn();
                 return;
             }
 
-            var profile = BotProfiles.Get(hit.By);
+            var profile = BotProfiles.Get(string.IsNullOrEmpty(hit.Skin) ? hit.By : hit.Skin);
             Vector3 torso = puppet.Body.position;
 
             Vector3 dir;
             var launch = Launch(hit, torso, profile, out dir);
             Throw(puppet, launch, dir, profile.tumble >= 0f ? profile.tumble : BridgeConfig.Tumble.Value * profile.Scale);
             Haptics(profile);
-            if (ImpactSounds.Instance != null) ImpactSounds.Instance.OnBotHit(torso, profile);
+            if (ImpactSounds.Instance != null)
+            {
+                ImpactSounds.Instance.OnBotHit(torso, profile);
+                if (WantsDeathSound(hit.Death)) ImpactSounds.Instance.PlayDeath(torso);
+            }
 
             _down = true;
             float hold = profile.downSeconds >= 0f ? profile.downSeconds : BridgeConfig.DownSeconds.Value;
             _downUntil = hold > 0f ? Time.time + hold : 0f;
 
-            // Read at the moment of the catch. On a guest this is the host's value - settings
-            // are synced - so the whole lobby plays by one rule.
-            _respawnAfter = NextBotSettings.Active.DeathEnabled;
+            // The host's setting at the moment of the catch, carried in the catch itself, so the
+            // whole lobby plays by one rule.
+            _respawnAfter = hit.Death;
 
             float botSpeed = Flat(hit.Velocity).magnitude;
             if (KillCam.Instance != null)
@@ -553,19 +636,6 @@ namespace NextBotsRagdoll
         }
 
         // ================================================================== plumbing
-
-        /// <summary>Same rule as NextBots' own <c>CatchEffects.IsLocalActor</c>, so the two can
-        /// never disagree about whose catch this is.</summary>
-        private static bool IsLocal(int actor)
-        {
-            try
-            {
-                var net = NetworkSystem.Instance;
-                if (net == null || net.LocalPlayer == null) return true;   // offline: it is us
-                return net.LocalPlayer.ActorNumber == actor;
-            }
-            catch { return false; }
-        }
 
         private static int LocalActor()
         {

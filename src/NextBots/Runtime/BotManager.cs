@@ -259,10 +259,19 @@ namespace NextBots.Runtime
 
         private void OnBotCaughtPlayer(NextBot bot, int actorNumber)
         {
-            // Locally if it is us; otherwise tell the client it happened to, because a remote
-            // client cannot move someone else's rig in this game.
-            CatchEffects.Apply(actorNumber, bot);
-            if (Net != null) Net.SendCaught(actorNumber);
+            // Everyone hears about it - the death log and the sounds need that - and only the
+            // victim's own client runs the effect, because nobody else can move their rig.
+            var info = CatchEffects.Describe(bot, actorNumber);
+            if (Net != null) Net.SendCaught(info);
+            CatchEffects.Dispatch(info);
+        }
+
+        /// <summary>This client's bot with this network id, host's or puppet; null if none.</summary>
+        public NextBot FindByNetId(int netId)
+        {
+            for (int i = 0; i < _bots.Count; i++)
+                if (_bots[i] != null && _bots[i].NetId == netId) return _bots[i];
+            return null;
         }
 
         // ================================================================== replication

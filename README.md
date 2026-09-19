@@ -17,9 +17,9 @@ Three BepInEx plugins. Install all three for the full experience, or just the on
 
 | Plugin | What it does |
 |---|---|
-| **NextBots** | Spawn nextbots from a panel on your wrist. They find their way to you, cut you off, jump gaps, climb ledges, and sneak up while your back is turned. Any PNG or GIF becomes a bot, and a WAV with the same name becomes its chase sound. |
+| **NextBots** | Spawn nextbots from a panel on your wrist. They find their way to you, cut you off, jump gaps, climb ledges, and sneak up while your back is turned. Any PNG or GIF becomes a bot, and a WAV with the same name becomes its chase sound. A Garry's Mod-style death log shows who got caught by what, in your headset and on the monitor. |
 | **GorillaRagdoll** | Full-body ragdoll for your gorilla. Go limp at the press of a button, tumble with real physics, and get up where you land. You can watch in first or third person in the headset, and there's a separate camera for the monitor. Other players with the mod see your ragdoll too. |
-| **NextBotsRagdoll** | Connects the two. A nextbot catching you knocks you down and throws you in the direction it hit you, with a kill cam, per-bot weights and impact sounds. Needs both of the others. |
+| **NextBotsRagdoll** | Connects the two. A nextbot catching you knocks you down and throws you in the direction it hit you, with a kill cam, per-bot weights and Garry's Mod impact and death sounds that the whole lobby hears. Needs both of the others. |
 
 ## Install
 
@@ -92,6 +92,29 @@ When a bot gets within about a metre of you:
   up, so you can't be caught again the moment you stand.
 - With **DEATH ON CATCH** switched on in the wrist panel, you respawn after the knockdown instead
   of getting up where you landed.
+- **Everyone hears it.** The hit and Garry's Mod's death sound play where your body is, and every
+  thud as your ragdoll lands is sent to the other players, timed to when they see it land.
+- **The death log** shows it to the whole lobby: the bot's name (its image file name), its
+  picture, and the player it caught.
+
+### Death log
+
+Every catch shows up in the corner of your headset view and of the monitor, Garry's Mod style:
+
+```
+Obunga [bot picture] stridefr
+```
+
+The look and position live in `BepInEx\plugins\NextBots\killfeed.json`, which is created on first
+launch. Change `corner` to `TopLeft`, `TopRight`, `BottomLeft` or `BottomRight`, or restyle it
+completely: colours, a box behind each row, an outline when it's you, icon size, how long rows
+stay. Saving the file updates the game within a second, no restart needed. When more catches come
+in than there are rows, the oldest one fades out as it's pushed off the end.
+
+**Fonts.** Set `font` to the name of any font installed on your PC, like `Verdana`, `Impact` or
+`Segoe UI`, and `bold` to `true` or `false`. Garry's Mod's own death notices are Verdana Bold. No
+fonts come with the mod: it uses the ones installed on your PC, and if a font isn't installed that
+text just uses the game's default.
 
 ### Bot weights
 
@@ -101,18 +124,28 @@ You can also change how high it launches you, how long you stay down, and which 
 The files are reloaded when you save them, so you can tune with the game running. The
 `README.txt` in that folder lists every option.
 
-### Impact sounds (optional)
+### Impact sounds
 
-Your ragdoll can make the classic Garry's Mod body-impact sounds when it hits the ground or gets
-hit by a bot. The sounds belong to Valve, so they are **not included**. If you own Garry's Mod,
-copy them from your own install: after the first launch, `BepInEx\plugins\NextBotsRagdoll\sounds\README.txt`
-explains exactly which files go where. Any WAVs you like work too.
+Your ragdoll makes the classic Garry's Mod body sounds when it hits things, and you hear Garry's
+Mod's death sound when someone gets caught. The sounds belong to Valve, so they are **not
+included**. Instead:
+
+- **If you own Garry's Mod or Half-Life 2 on Steam**, the mod copies the exact sounds those games
+  use from your own install the first time it starts. Nothing to do.
+- **If you don't**, drop any WAVs you like into the folders in `BepInEx\plugins\NextBotsRagdoll\sounds\`.
+  The `README.txt` in there explains which folder is for what.
+
+Other players only hear your ragdoll if they have sounds in their own folders too.
 
 ## Settings
 
 - **Bots:** the wrist panel's `TUNE` page. Speed, acceleration, ambushes, jumping, climbing,
   catch range, sound and more. In a room, the host's settings apply to everyone.
 - **Ragdoll and cameras:** press **F4** on the monitor.
+- **Fonts:** the death log's is in `killfeed.json` (above). The wrist panel's is `Font` under
+  `[UI]` in `com.stridefr.nextbots.cfg`, and the F4 menu's is `MenuFont` in
+  `com.stridefr.gorillaragdoll.cfg`. Use the name of a font installed on your PC; restart the
+  game after changing these two.
 - **Everything:** the config files in `BepInEx\config\`: `com.stridefr.nextbots.cfg`,
   `com.stridefr.gorillaragdoll.cfg` and `com.stridefr.nextbotsragdoll.cfg`.
 
@@ -120,6 +153,8 @@ explains exactly which files go where. Any WAVs you like work too.
 
 - **Multiplayer has had much less testing than single player.** Bots, ragdolls and knockdowns
   are all built to work in a lobby, but expect rough edges. Bug reports are very welcome.
+- **Everyone in a lobby needs the same version.** Players on different versions don't see each
+  other's bots.
 - **The NextBots keyboard shortcuts (F1, F7) don't work** on the current game version. Use the
   wrist panel.
 - **In the third-person VR camera, players without the mod see you floating** where your camera

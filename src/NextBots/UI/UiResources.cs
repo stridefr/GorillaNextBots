@@ -57,22 +57,52 @@ namespace NextBots.UI
             }
         }
 
+        private static TMP_FontAsset _gameTmpFont;
+        private static bool _tmpFontResolved;
+
+        /// <summary>The game's own text font (Liberation Sans). Always there; everything else
+        /// falls back to it.</summary>
+        public static TMP_FontAsset GameTmpFont
+        {
+            get
+            {
+                if (_gameTmpFont != null) return _gameTmpFont;
+                try
+                {
+                    if (TMP_Settings.defaultFontAsset != null) _gameTmpFont = TMP_Settings.defaultFontAsset;
+                }
+                catch { /* TMP_Settings may not be initialised */ }
+
+                if (_gameTmpFont == null)
+                {
+                    var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
+                    if (fonts != null && fonts.Length > 0) _gameTmpFont = fonts[0];
+                }
+                return _gameTmpFont;
+            }
+        }
+
+        /// <summary>
+        /// The font the mod's own headset text uses - the wrist panel, the kill cam screen. The
+        /// one named in the config (<c>UI.Font</c>) when it is installed and can be built,
+        /// otherwise the game's own. Chosen once, so changing it needs a restart.
+        /// </summary>
         public static TMP_FontAsset TmpFont
         {
             get
             {
-                if (_tmpFont != null) return _tmpFont;
-                try
-                {
-                    if (TMP_Settings.defaultFontAsset != null) _tmpFont = TMP_Settings.defaultFontAsset;
-                }
-                catch { /* TMP_Settings may not be initialised */ }
+                if (_tmpFontResolved && _tmpFont != null) return _tmpFont;
+                _tmpFontResolved = true;
 
-                if (_tmpFont == null)
+                var game = GameTmpFont;
+                string wanted = Plugin.CfgFont != null ? Plugin.CfgFont.Value : "";
+                if (!string.IsNullOrWhiteSpace(wanted))
                 {
-                    var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
-                    if (fonts != null && fonts.Length > 0) _tmpFont = fonts[0];
+                    bool trueBold;
+                    var custom = ModFonts.Headset(wanted, false, out trueBold);
+                    if (custom != null && custom != game) _tmpFont = custom;
                 }
+                if (_tmpFont == null) _tmpFont = game;
                 Report();
                 return _tmpFont;
             }

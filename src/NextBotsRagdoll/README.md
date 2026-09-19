@@ -5,7 +5,7 @@ When a bot catches you, you go limp and get thrown the way the bot hit you. A ki
 body flying, then turns to the bot that did it. Then you get up, or you respawn if the host has
 **DEATH ON CATCH** on.
 
-**Status: 0.2.** The single-player knockdown and kill cam have been seen working in game; multiplayer
+**Status: 0.3.** The single-player knockdown and kill cam have been seen working in game; multiplayer
 has not been tested with a second player yet. Feature details and what comes next:
 [ROADMAP.md](ROADMAP.md).
 
@@ -77,6 +77,10 @@ has none. Existing files are never overwritten.
 | Impact sounds | `Enabled` | true | |
 | | `Volume` | 0.9 | |
 | | `SoftSpeed` / `HardSpeed` / `BreakSpeed` | 1.5 / 5 / 11 | m/s thresholds |
+| | `ShareWithOthers` | true | send your ragdoll's impacts to the lobby |
+| | `HearOthers` | true | play other players' impacts, hits and deaths |
+| | `DeathSound` | EveryCatch | `EveryCatch`, `KilledOnly` (DEATH ON CATCH) or `Off` |
+| | `ImportFromSourceGames` | true | fill empty sound folders from your own GMod/HL2 install |
 | Testing | `TestCatchKey` | F5 | |
 | | `TestBotSpeed` | 8 | m/s |
 
@@ -91,8 +95,8 @@ way the bot was running: getting run over), mixed by `TravelBias`. Speed is
 torso also gets `Tumble` spin that tips it over in the direction of the hit. The launch is added
 on top of the velocity GorillaRagdoll already gives the body when you collapse.
 
-**On a guest** the catch message only says "you were caught", so the nearest bot counts as the
-hitter. At catch range that is nearly always the right one.
+The bot's position and velocity come from NextBots' catch message, measured by the host at the
+moment of the catch, so every player is thrown exactly as the host saw the hit.
 
 ## Bots leave downed players alone
 
@@ -106,7 +110,8 @@ to GorillaRagdoll's own traffic: code 150 means someone is down, code 151 means 
 Look in `BepInEx/LogOutput.log` for:
 
 - `NextBotsRagdoll 0.2.0 | catches now ragdoll you (enabled)`: the patch is installed.
-- `[Sound] impact_soft=7 impact_hard=6 ...`: how many WAVs each set loaded.
+- `[Sound] impact_soft=5 impact_hard=6 ...`: how many WAVs each set loaded.
+- `[Sound] imported 23 sounds ... from Garry's Mod`: the empty folders were filled from your install.
 - `[KillCam] built | lens 512x288 from '<camera>'`: the kill cam object exists. `lens NONE`
   means no camera to clone; the model still shows but the screen is blank.
 - `[Bridge] knocked down by 'X' | 300 kg (x1.94) | bot 6.0 m/s | launch 22.4 m/s`
@@ -117,11 +122,12 @@ Look in `BepInEx/LogOutput.log` for:
 ## Layout
 
 ```
-Plugin.cs           BepInEx entry; Harmony prefix on NextBots' CatchEffects.Apply
-KnockdownBridge.cs  hit direction, launch, knockdown timer, respawn, host-side exclusion, F5
+Plugin.cs           BepInEx entry
+KnockdownBridge.cs  NextBots catch hooks, launch, knockdown timer, respawn, host-side exclusion, F5
 KillCam.cs          the kill cam object: film-camera model, lens, VR screen, monitor PiP
 BotProfiles.cs      per-bot weight files
-ImpactSounds.cs     Source-style impact sound sets + the listener on each ragdoll part
+ImpactSounds.cs     Source-style sound sets, the listener on each ragdoll part, sharing (event 152)
+SourceSoundImport.cs  fills empty sound folders from the player's own GMod/HL2 install
 BridgeConfig.cs     the knobs
 ROADMAP.md          every feature, built and planned, in detail
 ```

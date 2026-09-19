@@ -4,7 +4,7 @@ Garry's-Mod-style nextbots for Gorilla Tag: entities that hunt players across th
 point-and-place spawn menu, and an in-VR settings panel for tuning them live.
 
 **Status: the full single-player loop is verified working in game** — spawn, hunt, catch.
-Networking is built (v0.26.0) but **not yet verified with a second client**. See
+Networking is built (protocol 3 since v0.27.0) but **not yet verified with a second client**. See
 [Current status](#current-status).
 
 > Part of [GorillaNextBots](../../README.md). Works on its own. Add
@@ -106,6 +106,8 @@ src/NextBots/
     NextBot.cs            one bot; IBotBody over GameAgent, NavMeshAgent or steering
     BotVisual.cs          the billboard
     BotSkins.cs           PNG loading
+    CatchEffects.cs       what a catch carries (CatchInfo), who hears about it, the victim's effect
+    PlayerNames.cs        nametag names and positions by actor number
   UI/
     HandTips.cs           fingertips from GT's own hand trigger colliders
     PanelButton.cs        swept segment-vs-AABB press test, hold-to-repeat
@@ -113,6 +115,9 @@ src/NextBots/
     NextBotMenu.cs        the wrist panel
     SpawnAimer.cs         aim ray + ghost preview
     IBotDirector.cs       the narrow surface the menu drives
+    KillFeed.cs           the death log, in the headset and on the monitor
+    KillFeedStyle.cs      killfeed.json: its look and corner
+    ModFonts.cs           fonts built at runtime from the player's installed fonts
   Debugging/
     BotDebugVisual.cs     real NavMeshPath.corners, destination, target line, state colour
   Recon/
@@ -153,7 +158,7 @@ see below). The master client is the only simulation; everyone else holds puppet
 | Settings | Sent on join, and again within 0.5 s of any change on the host. Guests cannot edit (`HOST CONTROLS SETTINGS`); their own values are restored when they leave |
 | Late joiners | Ask the host 1.5 s after joining; host re-sends every bot plus settings |
 | Host leaves | Everyone drops that host's bots (nobody is driving them any more) |
-| Catch | Host detects it and tells only the caught player, whose own client runs the effect |
+| Catch | Host detects it and sends it to **everyone**: victim, bot, bot image name, where the bot was and its measured velocity, DEATH ON CATCH. Every client raises `CatchEffects.Caught` (the death log and other mods listen); only the victim's own client runs the effect, through `CatchEffects.LocalCatchHandler` if a mod has set one |
 | Sound | Local to each listener: guests run occlusion and distance themselves |
 
 Log lines to check when testing: `[Net] settings changed; sent to the lobby.` (host),

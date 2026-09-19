@@ -14,6 +14,18 @@ namespace NextBotsRagdoll
     /// is already synced from the host - so it decides: on, you ragdoll and then respawn; off, you
     /// ragdoll and get up where you land.
     /// </summary>
+    /// <summary>When the Garry's Mod death sound plays for a catch.</summary>
+    public enum DeathSoundMode
+    {
+        /// <summary>Every catch - the death log treats every catch as a kill, so does this.</summary>
+        EveryCatch,
+
+        /// <summary>Only when DEATH ON CATCH is on and the catch really sends you to spawn.</summary>
+        KilledOnly,
+
+        Off
+    }
+
     public static class BridgeConfig
     {
         public static ConfigEntry<bool> Enabled;
@@ -43,6 +55,10 @@ namespace NextBotsRagdoll
         public static ConfigEntry<float> SoftSpeed;
         public static ConfigEntry<float> HardSpeed;
         public static ConfigEntry<float> BreakSpeed;
+        public static ConfigEntry<bool> ShareSounds;
+        public static ConfigEntry<bool> HearOthers;
+        public static ConfigEntry<DeathSoundMode> DeathSound;
+        public static ConfigEntry<bool> ImportFromSourceGames;
 
         public static ConfigEntry<KeyCode> TestCatchKey;
         public static ConfigEntry<float> TestBotSpeed;
@@ -127,6 +143,16 @@ namespace NextBotsRagdoll
             BreakSpeed = cfg.Bind(S, "BreakSpeed", 11f,
                 new ConfigDescription("Impact speed, m/s, from which the bone-crunch 'break' set plays.",
                     new AcceptableValueRange<float>(1f, 60f)));
+            ShareSounds = cfg.Bind(S, "ShareWithOthers", true,
+                "Send your ragdoll's impacts to other players who have this mod, so they hear your body land. " +
+                "Follows GorillaRagdoll's ShareMyRagdoll too: not sharing the ragdoll means not sharing its sounds.");
+            HearOthers = cfg.Bind(S, "HearOthers", true,
+                "Play other players' ragdoll impacts, and the hit and death sounds when a bot catches them.");
+            DeathSound = cfg.Bind(S, "DeathSound", DeathSoundMode.EveryCatch,
+                "When the death set (Garry's Mod's Player.Death) plays: EveryCatch, KilledOnly (DEATH ON CATCH), or Off.");
+            ImportFromSourceGames = cfg.Bind(S, "ImportFromSourceGames", true,
+                "On startup, fill any EMPTY sound folder from your own Garry's Mod or Half-Life 2 install, using the " +
+                "exact files those games play for a body. Nothing is downloaded and folders you filled yourself are never touched.");
 
             const string T = "6. Testing";
             TestCatchKey = cfg.Bind(T, "TestCatchKey", KeyCode.F5,

@@ -33,6 +33,20 @@ namespace NextBots.Runtime
         public int SkinIndex;
         public string SkinName = "";
 
+        /// <summary>The skin's file name without extension, case kept - what the death log shows.</summary>
+        public string DisplayName = "";
+
+        /// <summary>
+        /// How fast the bot is really moving, measured from its own motion every frame.
+        ///
+        /// <para>Not <see cref="Velocity"/>: that asks the agent, which knows nothing about jumps,
+        /// climbs or falls, and a guest's copy has no agent at all. Measuring the transform works
+        /// the same on the host and on every guest, whatever is moving the bot.</para>
+        /// </summary>
+        public Vector3 MeasuredVelocity { get; private set; }
+        private Vector3 _lastPos;
+        private bool _hasLastPos;
+
         /// <summary>Where this bot was originally placed. Used to recover if it falls out of the world.</summary>
         public Vector3 SpawnPosition;
 
@@ -85,6 +99,7 @@ namespace NextBots.Runtime
 
             SkinIndex = skinIndex;
             SkinName = skin != null ? skin.Name : "?";
+            DisplayName = skin != null && !string.IsNullOrEmpty(skin.DisplayName) ? skin.DisplayName : SkinName;
 
             if (Visual == null) Visual = gameObject.AddComponent<BotVisual>();
             Visual.Apply(skin);
@@ -909,6 +924,22 @@ namespace NextBots.Runtime
             {
                 GameAgent.UpdateFacingForward(transform, Agent, _cfg != null ? _cfg.TurnSpeed : 3600f);
             }
+        }
+
+        private void LateUpdate()
+        {
+            float dt = Time.deltaTime;
+            var p = transform.position;
+            if (_hasLastPos && dt > 1e-4f)
+            {
+                var instant = (p - _lastPos) / dt;
+                // A warp - stuck reset, fall recovery, a snap to the host's position - is not a
+                // velocity, and would fling anyone this bot catches next across the map.
+                if (instant.sqrMagnitude > 60f * 60f) instant = MeasuredVelocity;
+                MeasuredVelocity = Vector3.Lerp(MeasuredVelocity, instant, Mathf.Clamp01(dt * 10f));
+            }
+            _lastPos = p;
+            _hasLastPos = true;
         }
 
         private void EnsureDebug()

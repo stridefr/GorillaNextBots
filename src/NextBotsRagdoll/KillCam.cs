@@ -336,7 +336,12 @@ namespace NextBotsRagdoll
 
             float w = Mathf.Round(Screen.width * 0.3f);
             float h = Mathf.Round(w * _texture.height / _texture.width);
-            var img = new Rect(Screen.width - w - 16f, 44f, w, h);
+
+            // Top-right, unless the death log is there - it gets a row at exactly the moment
+            // this appears, and the two would sit on top of each other.
+            var feed = NextBots.UI.KillFeed.Current;
+            bool feedThere = feed != null && feed.enabled && feed.showOnMonitor && feed.Top && feed.Right;
+            var img = new Rect(feedThere ? 16f : Screen.width - w - 16f, 44f, w, h);
 
             GUI.Box(new Rect(img.x - 6f, img.y - 38f, w + 12f, h + 66f), GUIContent.none);
             GUI.Label(new Rect(img.x, img.y - 34f, w, 30f), _title, _pipTitle);

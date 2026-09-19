@@ -39,8 +39,10 @@ namespace NextBots.Net
         /// Wire format version. Bumped if the packet layout changes.
         /// 2: spawn carries the skin's name, so it no longer depends on both clients having
         ///    the same files in the same order.
+        /// 3: a catch goes to the whole lobby and carries the bot, its image name, where it
+        ///    was and how fast it was moving - the exact hit, for knockback and the death log.
         /// </summary>
-        public const byte Protocol = 2;
+        public const byte Protocol = 3;
 
         public Runtime.BotManager Bots;
 
@@ -294,17 +296,50 @@ namespace NextBots.Net
             Send(EvState, _buffer.ToArray(), reliable: false);
         }
 
-        public void SendCaught(int actorNumber)
+        /// <summary>
+        /// A catch, to everyone. Reliable: a death log with holes in it, or a knockback that never
+        /// arrives, is worse than a packet that turns up a moment late.
+        /// </summary>
+        public void SendCaught(Runtime.CatchInfo info)
         {
-            if (!PhotonNetwork.InRoom || !IsAuthority) return;
+            if (!PhotonNetwork.InRoom || !IsAuthority || info == null) return;
 
             _buffer.SetLength(0);
             using (var w = new BinaryWriter(_buffer, System.Text.Encoding.UTF8, true))
             {
                 w.Write(Protocol);
-                w.Write(actorNumber);
+                w.Write(info.VictimActor);
+                w.Write(info.BotNetId);
+                w.Write(Clip(info.BotSkin, 64));
+                w.Write(Clip(info.BotName, 64));
+                w.Write(Clip(info.VictimName, 32));
+                WriteVec(w, info.BotPosition);
+                WriteVec(w, info.BotVelocity);
+                WriteVec(w, info.VictimPosition);
+                w.Write(info.Death);
+                w.Write(info.Time);
             }
             Send(EvCaught, _buffer.ToArray(), reliable: true);
+        }
+
+        private static string Clip(string s, int max)
+        {
+            s = s ?? "";
+            return s.Length > max ? s.Substring(0, max) : s;
+        }
+
+        private static void WriteVec(BinaryWriter w, Vector3 v)
+        {
+            w.Write(v.x); w.Write(v.y); w.Write(v.z);
+        }
+
+        private static Vector3 ReadVec(BinaryReader r)
+        {
+            var v = new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
+            // One NaN in a rigidbody velocity is a ragdoll that vanishes from the world.
+            return float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z) ||
+                   float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z)
+                ? Vector3.zero : v;
         }
 
         public void SendSettings()
@@ -448,13 +483,30 @@ namespace NextBots.Net
         {
             if (!SenderIsAuthority(sender)) return;
 
-            var actor = r.ReadInt32();
-            var local = PhotonNetwork.LocalPlayer;
-            if (local == null || local.ActorNumber != actor) return;
+            var info = new Runtime.CatchInfo
+            {
+                VictimActor = r.ReadInt32(),
+                BotNetId = r.ReadInt32(),
+                BotSkin = r.ReadString(),
+                BotName = r.ReadString(),
+                VictimName = r.ReadString(),
+                BotPosition = ReadVec(r),
+                BotVelocity = Vector3.ClampMagnitude(ReadVec(r), 60f),
+                VictimPosition = ReadVec(r),
+                Death = r.ReadBoolean(),
+                Time = r.ReadDouble()
+            };
 
-            // Only the caught player runs the effect, on their own client - a remote client
-            // cannot move someone else's rig in this game anyway.
-            Runtime.CatchEffects.Apply(actor, null);
+            // Our own copies where we have them: the bot object, the image name as *our* file
+            // spells it, and the victim's name as *our* nametag shows it. The host's strings
+            // are only the fallback.
+            info.Bot = Bots != null ? Bots.FindByNetId(info.BotNetId) : null;
+            var skin = Runtime.BotSkins.Find(info.BotSkin);
+            if (skin != null && !string.IsNullOrEmpty(skin.DisplayName)) info.BotName = skin.DisplayName;
+            string name;
+            if (Runtime.PlayerNames.TryOf(info.VictimActor, out name)) info.VictimName = name;
+
+            Runtime.CatchEffects.Dispatch(info);
         }
 
         /// <summary>A late joiner asking what already exists.</summary>
