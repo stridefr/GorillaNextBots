@@ -50,6 +50,9 @@ namespace NextBotsRagdoll
         public static ConfigEntry<float> KillCamZoomFov;
         public static ConfigEntry<int> KillCamResolution;
 
+        public static ConfigEntry<bool> HardLandingEnabled;
+        public static ConfigEntry<float> HardLandingMinSpeed;
+
         public static ConfigEntry<bool> DustEnabled;
         public static ConfigEntry<bool> DustForOthers;
         public static ConfigEntry<float> DustMinSpeed;
@@ -210,6 +213,13 @@ namespace NextBotsRagdoll
                 new ConfigDescription("Puffs in the biggest burst. The cost is mostly overdraw, so this is " +
                                       "the number to lower if a landing dips your frame rate in VR.",
                     new AcceptableValueRange<int>(20, 300)));
+            HardLandingEnabled = cfg.Bind(U, "HardLandings", true,
+                "Landing hard as a normal gorilla - dropping off a roof - throws the same dust, and other " +
+                "players see and hear it. A ragdoll's own landings are always covered.");
+            HardLandingMinSpeed = cfg.Bind(U, "HardLandingSpeed", 8f,
+                new ConfigDescription("How fast, in m/s, you have to be falling when you land for it to count. " +
+                                      "Around 8 is a drop off a roof; 5 catches a jump off a wall.",
+                    new AcceptableValueRange<float>(3f, 30f)));
             DustOpacity = cfg.Bind(U, "Opacity", 1f,
                 new ConfigDescription("Multiplies how solid the dust is, on top of the look's own thickness.",
                     new AcceptableValueRange<float>(0.1f, 2f)));

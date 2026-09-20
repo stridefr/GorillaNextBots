@@ -86,6 +86,8 @@ has none. Existing files are never overwritten.
 | Landing dust | `Enabled` | true | ring of dust, grit and a scuff where a body lands |
 | | `ShowForOthers` | true | other players' landings too |
 | | `MinSpeed` | 4 | m/s; slower impacts throw nothing |
+| | `HardLandings` | true | landing hard as a normal gorilla puffs too |
+| | `HardLandingSpeed` | 8 | m/s you must be falling when you land; 5 catches a wall jump |
 | | `Amount` | 110 | puffs in the biggest burst - lower it if a landing dips VR frame rate |
 | | `Opacity` | 1 | multiplies the look's own thickness |
 | Impact sounds | `Enabled` | true | |
@@ -144,6 +146,7 @@ KillCam.cs          the kill cam object: film-camera model, lens, VR screen, mon
 Jumpscare.cs        the bot's face in yours at the moment it catches you
 DeathVignette.cs    the red flash, the colour draining, and the world coming back
 Dust.cs             the landing dust: ring, grit, crack of fine dust, scuff marks
+HardLanding.cs      landing hard on your feet: a fall that stops suddenly, read off the player's rigidbody
 DustLook.cs         dust.json - the look, in the same file the design page writes
 BotProfiles.cs      per-bot weight files
 ImpactSounds.cs     Source-style sound sets, the listener on each ragdoll part, sharing (event 152)

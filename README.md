@@ -84,6 +84,7 @@ everyone else sees the host's bots.
 | | A / D, W / S | The same, from the keyboard |
 | | Scroll | Zoom |
 | | C | Look back at your body |
+| | **O** | Switch the slow automatic orbit on or off (see below) |
 
 Keyboard keys only work while the game window has focus, so in the headset use the controller
 buttons.
@@ -102,9 +103,15 @@ When a bot gets within about a metre of you:
   how long the red holds and how slowly the colour returns.
 - **Dust.** A body landing throws up a ring of dust that runs out along the floor, grit that bounces,
   a crack of fine dust at the moment of impact, and a scuff mark that fades over ten seconds or so.
+  Landing hard on your feet does it too - dropping off a roof - not just being knocked down.
   Everyone in the lobby sees it, including other players' landings. The look is in
   `BepInEx/plugins/NextBotsRagdoll/dust.json`; the numbers under `[9. Landing dust]` in the config
   switch it off, change how hard a landing has to be, and how many puffs the biggest burst uses.
+- **The camera orbits by itself**, slowly, for filming: about 10 degrees a second with a gentle drift up
+  and down and a slight breathing in and out, so it reads as a camera move rather than a turntable.
+  Touch the mouse, A/D/W/S or the wheel and it is yours at once; leave it alone for a couple of
+  seconds and it eases back in. Speed, drift and delay are under `[6. Camera (monitor)]`, or press
+  **O** to turn it off.
 - **A kill cam** can film your body flying and then swing round to the bot that got you, on a
   floating screen in VR and in the corner of the monitor. It is **off by default** - it draws the
   whole scene a second time - so switch `Enabled` on under `[4. Kill cam]` if you want it.

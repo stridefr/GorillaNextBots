@@ -34,6 +34,7 @@ Pass `-p:NoDeploy=true` to skip. Game path is set once in `GorillaRagdoll.csproj
 | Left controller **X** | Go ragdoll / get up, in VR (hold ~0.3s) |
 | Hold **right mouse**, drag | Circle the body and raise or lower the camera, the view coming with it (`ThirdPersonFree`). `OrbitDrag = FreeLook` turns the camera on the spot instead |
 | **A / D**, **W / S** | The same, from the keyboard (`ThirdPersonFree`, `OrbitAim = Free`) |
+| **O** | Auto orbit on or off. It turns 10 degrees a second with a slow drift and breath, gives way the moment you touch the camera and eases back in after `AutoOrbitResume` seconds |
 | **C** or middle mouse | Look back at the body |
 | Scroll | Zoom in / out |
 | WASD + QE | Fly the camera (in `ThirdPersonFly` mode only) |

@@ -185,6 +185,25 @@ namespace NextBotsRagdoll
             Broadcast(position, speed);
         }
 
+        /// <summary>
+        /// The player, on their feet, landed hard. The same as a ragdoll's impact - dust, thud, and
+        /// the message that lets everyone else see and hear it - except that the speed is held below
+        /// the bone-crunch threshold: that sound is for a body breaking, and you walked away from
+        /// this.
+        /// </summary>
+        public void OnLanding(Vector3 position, float speed)
+        {
+            if (Time.time - _lastImpactAt < MinGap) return;
+
+            float cap = Mathf.Max(BridgeConfig.SoftSpeed.Value + 0.1f, BridgeConfig.BreakSpeed.Value - 0.1f);
+            speed = Mathf.Min(speed, cap);
+            _lastImpactAt = Time.time;
+
+            if (Dust.Instance != null) Dust.Instance.Puff(position, speed);
+            if (BridgeConfig.SoundsEnabled.Value) PlayImpact(position, speed);
+            Broadcast(position, speed);
+        }
+
         private bool PlayImpact(Vector3 position, float speed)
         {
             float soft = BridgeConfig.SoftSpeed.Value;

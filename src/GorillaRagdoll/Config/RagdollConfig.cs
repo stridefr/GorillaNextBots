@@ -165,6 +165,11 @@ namespace GorillaRagdoll.Config
         public static ConfigEntry<OrbitAim> MonitorOrbitAim;
         public static ConfigEntry<OrbitDrag> MonitorOrbitDrag;
         public static ConfigEntry<float> MonitorOrbitKeySpeed;
+        public static ConfigEntry<bool> AutoOrbit;
+        public static ConfigEntry<float> AutoOrbitSpeed;
+        public static ConfigEntry<float> AutoOrbitSway;
+        public static ConfigEntry<float> AutoOrbitResume;
+        public static ConfigEntry<KeyCode> AutoOrbitKey;
 
         // ---- camera (VR orbit)
         public static ConfigEntry<float> VrOrbitYawSpeed;
@@ -356,6 +361,24 @@ namespace GorillaRagdoll.Config
             MonitorOrbitKeySpeed = cfg.Bind(M, "OrbitKeySpeed", 90f,
                 new ConfigDescription("Degrees per second A/D and W/S move the Free orbit camera round the body.",
                     new AcceptableValueRange<float>(10f, 360f)));
+
+            AutoOrbit = cfg.Bind(M, "AutoOrbit", true,
+                "The Free orbit slowly circles your body by itself, for filming. Touch the mouse or " +
+                "A/D/W/S/scroll and it hands control to you, then eases back in once you let go.");
+            AutoOrbitSpeed = cfg.Bind(M, "AutoOrbitSpeed", 10f,
+                new ConfigDescription("Degrees per second. 10 is a lap in 36 seconds, slow enough to " +
+                                      "read as a camera move; negative goes the other way.",
+                    new AcceptableValueRange<float>(-60f, 60f)));
+            AutoOrbitSway = cfg.Bind(M, "AutoOrbitSway", 0.5f,
+                new ConfigDescription("How much the camera also drifts up and down and breathes in and " +
+                                      "out while it circles. 0 is a flat turntable; around 0.5 looks " +
+                                      "smooth on video.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            AutoOrbitResume = cfg.Bind(M, "AutoOrbitResume", 2.5f,
+                new ConfigDescription("Seconds of leaving the camera alone before the auto orbit takes it back.",
+                    new AcceptableValueRange<float>(0.5f, 20f)));
+            AutoOrbitKey = cfg.Bind(M, "AutoOrbitKey", KeyCode.O,
+                "Press to switch the auto orbit on or off while you are down.");
 
             const string O = "6b. Camera (VR orbit)";
             VrOrbitYawSpeed = cfg.Bind(O, "VrOrbitYawSpeed", 90f,

@@ -44,7 +44,7 @@ namespace NextBotsRagdoll
         public float core = 1f;
 
         // ---- on the ground
-        public float grit = 184f;
+        public float grit = 0f;
         public float gritBounce = 0.4f;
         public float flash = 1f;
         public float scuff = 0.66f;

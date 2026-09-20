@@ -25,7 +25,7 @@ namespace NextBotsRagdoll
     {
         public const string Guid = "com.stridefr.nextbotsragdoll";
         public const string Name = "NextBotsRagdoll";
-        public const string Version = "0.6.0";
+        public const string Version = "0.7.0";
 
         public static ManualLogSource Log { get; private set; }
 
@@ -43,6 +43,7 @@ namespace NextBotsRagdoll
             _host.AddComponent<Jumpscare>();
             _host.AddComponent<DeathVignette>();
             _host.AddComponent<Dust>();
+            _host.AddComponent<HardLanding>();
 
             // Its own object: it has a camera, a model and a screen hanging off it, placed in
             // world space every frame, and none of that belongs under the host.

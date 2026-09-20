@@ -41,6 +41,13 @@ namespace GorillaRagdoll.Cameras
         private bool _placed;
         private float _speed;
 
+        // The auto orbit: how long the camera has been left alone, how far the orbit has eased in,
+        // and how much of the up-and-down drift is currently applied (so it can be undone exactly).
+        private float _autoIdle;
+        private float _autoBlend;
+        private float _autoClock;
+        private float _autoPitchApplied;
+
         public bool Alive => _cam != null;
 
         /// <summary>Live speed, so the overlay can show what scroll has done to it.</summary>
@@ -221,6 +228,12 @@ namespace GorillaRagdoll.Cameras
                 _lookPitch = _pitch;
                 _fade.SetExclusion(VRRig.LocalRig != null ? VRRig.LocalRig.transform : null);
                 _placed = true;
+
+                // Starts turning about a second after the camera has settled behind the body.
+                _autoIdle = Mathf.Max(0f, RagdollConfig.AutoOrbitResume.Value - 1f);
+                _autoBlend = 0f;
+                _autoClock = 0f;
+                _autoPitchApplied = 0f;
             }
 
             if (!menuOpen)
@@ -238,13 +251,22 @@ namespace GorillaRagdoll.Cameras
                 if (Mathf.Abs(scroll) > 0.01f)
                     _distance = Mathf.Clamp(_distance * (scroll > 0f ? 1f / 1.15f : 1.15f),
                                             RagdollConfig.ThirdPersonMinDistance.Value, 30f);
+
+                if (SafeInput.KeyDown(RagdollConfig.AutoOrbitKey.Value))
+                    RagdollConfig.AutoOrbit.Value = !RagdollConfig.AutoOrbit.Value;
+
+                bool touched = SafeInput.Mouse(1) || Mathf.Abs(scroll) > 0.01f ||
+                               SafeInput.Key(KeyCode.A) || SafeInput.Key(KeyCode.D) ||
+                               SafeInput.Key(KeyCode.W) || SafeInput.Key(KeyCode.S);
+                AutoOrbit(free, touched, false);
             }
+            else AutoOrbit(free, true, true);
 
             // The tether never swings below the body: that is under the floor.
             if (free) _pitch = Mathf.Clamp(_pitch, -10f, 80f);
 
             Vector3 dir = Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.back;
-            float dist = _distance;
+            float dist = _distance * AutoBreath();
 
             // Keep the body in sight: if scenery blocks the line, come closer than it.
             int mask;
@@ -284,6 +306,59 @@ namespace GorillaRagdoll.Cameras
                 _fade.Update(target, _pos, probe * 0.5f, mask, RagdollConfig.OccluderAlpha.Value);
             else
                 _fade.RestoreAll();
+        }
+
+        /// <summary>
+        /// The auto orbit, made for filming. A slow steady turn is the shot itself; a little slow
+        /// drift up and down, and the camera very gently breathing in and out, is what stops it
+        /// looking like a turntable and starts it looking like a person with a gimbal.
+        ///
+        /// <para>Nothing about it fights you. Touching the mouse, A/D/W/S or the wheel takes the
+        /// camera back within a tenth of a second and it stays yours until you have left it alone
+        /// for <c>AutoOrbitResume</c> seconds, after which it eases back in over a second and a
+        /// half. The turn is added the same way the keys' orbit is - the view is carried round with
+        /// the camera - so the body stays where it was on screen.</para>
+        /// </summary>
+        private void AutoOrbit(bool free, bool touched, bool paused)
+        {
+            float dt = Time.deltaTime;
+            bool on = RagdollConfig.AutoOrbit.Value;
+
+            if (touched || !on) _autoIdle = 0f;
+            else _autoIdle += dt;
+
+            bool go = on && !paused && _autoIdle >= RagdollConfig.AutoOrbitResume.Value;
+            _autoBlend = Mathf.MoveTowards(_autoBlend, go ? 1f : 0f, dt / (go ? 1.5f : 0.12f));
+
+            // The drift is undone as the orbit lets go, so the camera returns to where it was
+            // rather than being left tilted.
+            float sway = RagdollConfig.AutoOrbitSway.Value;
+            float wantPitch = _autoBlend > 0f ? sway * 6f * Mathf.Sin(_autoClock * 0.45f) * _autoBlend : 0f;
+            float dPitch = wantPitch - _autoPitchApplied;
+            _autoPitchApplied = wantPitch;
+
+            if (_autoBlend <= 0f && Mathf.Abs(dPitch) < 1e-4f) return;
+            _autoClock += dt * _autoBlend;
+
+            // Eased twice - by the blend and by a smoothstep of it - so it starts and stops
+            // without a jolt.
+            float turn = RagdollConfig.AutoOrbitSpeed.Value * Mathf.SmoothStep(0f, 1f, _autoBlend) * dt;
+            _yaw += turn;
+            _pitch += dPitch;
+            if (free)
+            {
+                _lookYaw += turn;
+                _lookPitch += dPitch;
+            }
+        }
+
+        /// <summary>The camera slowly moving in and out while the auto orbit runs: a few percent, a
+        /// long slow cycle. Applied to the distance actually used, never to the setting.</summary>
+        private float AutoBreath()
+        {
+            float sway = RagdollConfig.AutoOrbitSway.Value;
+            if (_autoBlend <= 0f || sway <= 0f) return 1f;
+            return 1f + 0.08f * sway * Mathf.Sin(_autoClock * 0.3f + 1f) * _autoBlend;
         }
 
         private void FirstPerson(Transform head, Quaternion headToView, bool locked)
