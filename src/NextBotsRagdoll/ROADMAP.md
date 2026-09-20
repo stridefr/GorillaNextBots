@@ -219,6 +219,12 @@ are up - which reads as the colour coming back into the world.
 - Drawn for the eye camera and the monitor's third-person camera, hidden from every other, like the
   death log. It was once hidden from the monitor camera by mistake, so on a monitor in third person
   it never showed.
+- **Not a true desaturation, and cannot be.** That needs a shader, and this game's build has none of
+  URP's post-processing shaders (no UberPost, no Bloom) to drive from a Volume. A see-through layer
+  blends towards a flat grey, which scales the chroma by what is left and so does drain colour, but
+  also flattens contrast, and a light grey looks like a white haze. So it is a dark grey (`Grey`,
+  0.38), plus a separate edge layer that is red for the hit and then dark. Each is stretched to the
+  camera's own field of view and aspect with a margin, so it reaches the corners of any monitor.
 
 ## 15. Landing dust (built)
 
@@ -260,13 +266,13 @@ and needs a shader, so the in-game version is a sprite approximation of it and s
 
 `Daze.cs`. A heavy hit sets a level from 0 to 1 and two things follow it.
 
-- **Muffling**: an `AudioLowPassFilter` on the game's audio listener, which sits on the whole mix, so
-  the music, ambience, other players and bots all go dull together. The cutoff runs from 22 kHz down
-  to 500 Hz on a log scale, and never silent.
-- **Ringing**: a one-second loop made in code - three sines a few Hz apart so it shimmers instead of
-  sounding like a test tone, all whole-number frequencies so the loop has no seam. It plays from its
-  own source with `bypassListenerEffects`, because otherwise the muffling would squash the very whine
-  it sits under. No sound file ships with it.
+- **Both are one piece of audio processing**, `DazeDsp`, an `OnAudioFilterRead` on the game's audio
+  listener, so it sees the whole mix: music, ambience, other players, bots. A biquad low-pass, cutoff
+  on a log scale from 20 kHz down to 1.4 kHz at most, never silent. The whine - three sines a few Hz
+  apart so it shimmers instead of sounding like a test tone - is added *after* the filter in the same
+  callback. The first version used the engine's `AudioLowPassFilter` and a separate source with
+  `bypassListenerEffects`; in the game the whine came out muffled anyway, and adding it after the
+  filter leaves no way for that to happen. No sound file ships with it.
 - The ring has a longer tail than the muffle, so a whine lingers after the world has cleared.
 - Triggered by a bot catch (stronger for heavier bots), the very hardest ragdoll impacts, and a very
   hard landing. A second hit only lifts the level back to its own strength; it never stacks.

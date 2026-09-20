@@ -68,6 +68,7 @@ namespace NextBotsRagdoll
         public static ConfigEntry<bool> VignetteEnabled;
         public static ConfigEntry<float> VignetteStrength;
         public static ConfigEntry<float> VignetteWash;
+        public static ConfigEntry<float> VignetteGrey;
         public static ConfigEntry<float> VignetteRedSeconds;
         public static ConfigEntry<float> VignetteRecoverSeconds;
 
@@ -217,12 +218,14 @@ namespace NextBotsRagdoll
             DazeOnHardImpacts = cfg.Bind(Z, "OnHardImpacts", true,
                 "Also for very hard landings and slamming into things as a ragdoll, not only being caught. " +
                 "Only the very hardest count.");
-            DazeRingVolume = cfg.Bind(Z, "RingVolume", 0.45f,
+            DazeRingVolume = cfg.Bind(Z, "RingVolume", 0.25f,
                 new ConfigDescription("How loud the whine is at its worst. Quiet by default and hard-capped; " +
-                                      "0 turns the whine off and keeps the muffling.",
+                                      "0 turns the whine off and keeps the muffling. It is added after the " +
+                                      "muffling, so the muffling never dulls it.",
                     new AcceptableValueRange<float>(0f, 1f)));
-            DazeMuffle = cfg.Bind(Z, "Muffle", 0.85f,
-                new ConfigDescription("How dull everything goes at its worst. 1 is very dull, though never silent; " +
+            DazeMuffle = cfg.Bind(Z, "Muffle", 0.55f,
+                new ConfigDescription("How dull everything goes at its worst. Around 0.5 is like the next room; " +
+                                      "1 is like hearing through a wall, though never silent; " +
                                       "0 leaves the sound alone and keeps the whine.",
                     new AcceptableValueRange<float>(0f, 1f)));
             DazeSeconds = cfg.Bind(Z, "Seconds", 4.5f,
@@ -239,10 +242,16 @@ namespace NextBotsRagdoll
                                       "whatever this is set to.",
                     new AcceptableValueRange<float>(0.1f, 1f)));
             VignetteWash = cfg.Bind(V, "Wash", 0.5f,
-                new ConfigDescription("How much of the veil covers the middle of your view rather than just " +
-                                      "the edges. This is the part that takes the colour out. 0 = edges only. " +
-                                      "Changing it takes effect next time the game starts.",
-                    new AcceptableValueRange<float>(0f, 0.7f)));
+                new ConfigDescription("How strongly the grey wash takes the colour out of the whole view. " +
+                                      "0 = edges only. This is what fades slowly on the way back, which is " +
+                                      "the colour returning.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            VignetteGrey = cfg.Bind(V, "Grey", 0.38f,
+                new ConfigDescription("How light the wash is. 0 is nearly black, which dims the world as it drains " +
+                                      "the colour; higher looks like a white haze. The real desaturation a " +
+                                      "post-process would give is not available in this game, and a see-through " +
+                                      "grey is the nearest thing.",
+                    new AcceptableValueRange<float>(0f, 0.8f)));
             VignetteRedSeconds = cfg.Bind(V, "RedSeconds", 0.3f,
                 new ConfigDescription("How long the red flash holds before it turns grey.",
                     new AcceptableValueRange<float>(0f, 2f)));

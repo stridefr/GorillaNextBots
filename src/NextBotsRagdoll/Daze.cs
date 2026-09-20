@@ -4,51 +4,45 @@ using UnityEngine;
 namespace NextBotsRagdoll
 {
     /// <summary>
-    /// What a heavy hit does to your hearing: everything goes muffled, as if underwater, and a thin
-    /// high whine sits on top of it, both fading as you come round.
+    /// What a heavy hit does to your hearing: everything goes muffled, and a thin high whine sits on
+    /// top of it, both fading as you come round.
     ///
-    /// <para><b>Two effects, deliberately different.</b> The muffling is a low-pass filter on the
-    /// game's audio listener, which sits on the whole mix - music, ambience, other players, the
-    /// bots - so the world itself goes dull. The ringing is a tone made in code and played from its
-    /// own source that <i>ignores</i> that filter: otherwise the muffling would squash the very
-    /// whine it is meant to sit under. No sound file ships with it.</para>
+    /// <para><b>One piece of audio processing, not two effects.</b> The muffling and the whine are both
+    /// done in <see cref="DazeDsp"/>, on the audio listener's output: the whole mix is low-passed
+    /// first and the whine is added <i>afterwards</i>. That order is the point. An earlier version
+    /// used the engine's own low-pass filter on the listener and played the whine from a separate
+    /// source that was meant to bypass it; in the game the whine came out muffled anyway. Adding it
+    /// after the filter, in the same callback, leaves no way for that to happen.</para>
     ///
     /// <para><b>One number drives both.</b> A hit sets a level from 0 to 1. The muffling follows it
-    /// straight down after a short hold; the ringing has a slower tail, so a whine lingers a moment
-    /// after the world has cleared, which is what tinnitus does. A second hit while the first is
-    /// fading only lifts the level back up to its own strength - it never stacks past the maximum.</para>
+    /// down after a short hold; the whine has a slower tail, so it lingers a moment after the world has
+    /// cleared, which is what a ringing ear does. A second hit while the first is fading only lifts the
+    /// level back up to its own strength - it never stacks past the maximum.</para>
     ///
-    /// <para><b>Comfort.</b> The ring is quiet by default and hard-capped, the muffle never goes
-    /// silent, and the whole effect is one line to switch off. Nothing here is loud.</para>
+    /// <para><b>Comfort.</b> The whine is quiet by default and generated, so there is no sound file; the
+    /// muffling is moderate and never silences anything; and the game's audio is left exactly as found
+    /// when it ends.</para>
     /// </summary>
     public sealed class Daze : MonoBehaviour
     {
         public static Daze Instance { get; private set; }
 
-        /// <summary>The whine, in Hz. Whole numbers, so the one-second loop closes on a whole cycle.</summary>
-        private const int RingHz = 3150;
-        private const int SampleRate = 44100;
-
         /// <summary>How long a hit holds at full before it starts to clear.</summary>
         private const float Hold = 0.35f;
 
-        /// <summary>Nothing goes below this: never deaf, and always able to hear a bot coming.</summary>
-        private const float FloorCutoff = 500f;
-        private const float OpenCutoff = 22000f;
+        /// <summary>Everything above this is left alone, i.e. no muffling at all.</summary>
+        private const float OpenCutoff = 20000f;
+
+        /// <summary>The dullest it can go at <c>Muffle = 1</c>: about the sound through a wall.</summary>
+        private const float DullestCutoff = 1400f;
 
         private float _muffle;   // 0..1
         private float _ring;     // 0..1
         private float _sinceHit = 999f;
 
         private AudioListener _listener;
-        private AudioLowPassFilter _filter;
-        private bool _weAddedFilter;
-        private bool _filterWasEnabled;
-        private float _filterOldCutoff = OpenCutoff;
+        private DazeDsp _dsp;
         private float _nextListenerLookup;
-
-        private AudioSource _source;
-        private AudioClip _clip;
 
         private void Awake() => Instance = this;
 
@@ -56,7 +50,6 @@ namespace NextBotsRagdoll
         {
             if (Instance == this) Instance = null;
             Release();
-            if (_clip != null) Destroy(_clip);
         }
 
         private void OnDisable() => Release();
@@ -89,7 +82,7 @@ namespace NextBotsRagdoll
         {
             if (_muffle <= 0.001f && _ring <= 0.001f)
             {
-                if (_filter != null || (_source != null && _source.isPlaying)) Release();
+                if (_dsp != null) Release();
                 return;
             }
 
@@ -98,7 +91,7 @@ namespace NextBotsRagdoll
             float dt = Time.unscaledDeltaTime;
             _sinceHit += dt;
 
-            // A hold at full, then an exponential clear. The ring's tail is longer than the muffle's.
+            // A hold at full, then an exponential clear. The whine's tail is longer than the muffle's.
             float seconds = Mathf.Max(0.5f, BridgeConfig.DazeSeconds.Value);
             if (_sinceHit > Hold)
             {
@@ -106,133 +99,181 @@ namespace NextBotsRagdoll
                 _ring *= Mathf.Exp(-dt * 2.2f / seconds);
             }
 
-            ApplyMuffle();
-            ApplyRing();
-        }
-
-        private void ApplyMuffle()
-        {
-            var listener = FindListener();
-            if (listener == null) return;
-
-            if (_filter == null)
-            {
-                _filter = listener.GetComponent<AudioLowPassFilter>();
-                _weAddedFilter = _filter == null;
-                if (_filter == null) _filter = listener.gameObject.AddComponent<AudioLowPassFilter>();
-                else { _filterWasEnabled = _filter.enabled; _filterOldCutoff = _filter.cutoffFrequency; }
-                _filter.lowpassResonanceQ = 1f;
-                Plugin.Log.LogInfo("[Daze] low-pass on the audio listener '" + listener.name + "'" +
-                                   (_weAddedFilter ? "" : " (it already had one)"));
-            }
+            var dsp = Attach();
+            if (dsp == null) return;
 
             // Cutoff runs on a log scale, because that is how hearing works: halving the frequency is
-            // the same step wherever you start.
-            float floor = Mathf.Lerp(OpenCutoff, FloorCutoff, Mathf.Clamp01(BridgeConfig.DazeMuffle.Value));
-            float t = Mathf.Pow(Mathf.Clamp01(_muffle), 0.8f);
-            _filter.cutoffFrequency = OpenCutoff * Mathf.Pow(floor / OpenCutoff, t);
-            _filter.enabled = true;
-        }
+            // the same step wherever you start. Muffle sets how far down it can go.
+            float amount = Mathf.Clamp01(BridgeConfig.DazeMuffle.Value);
+            float floor = OpenCutoff * Mathf.Pow(DullestCutoff / OpenCutoff, amount);
+            // Closed over a tenth of a second rather than in one step, so it does not click.
+            float t = Mathf.Pow(Mathf.Clamp01(_muffle), 0.8f) * Mathf.SmoothStep(0f, 1f, _sinceHit / 0.1f);
+            dsp.Cutoff = OpenCutoff * Mathf.Pow(floor / OpenCutoff, t);
 
-        private void ApplyRing()
-        {
-            if (BridgeConfig.DazeRingVolume.Value <= 0.001f) { StopRing(); return; }
-
-            if (_source == null && !BuildRing()) return;
-
-            // Eased in at the very start so the tone never clicks on, and shaped so it is barely
-            // there when the level is low.
+            // Eased in at the very start so the whine never clicks on, and shaped so it is barely there
+            // when the level is low. RingVolume is the amplitude at the very worst.
             float attack = Mathf.Clamp01(_sinceHit / 0.06f);
-            float v = Mathf.Pow(Mathf.Clamp01(_ring), 1.5f) * attack * Mathf.Clamp01(BridgeConfig.DazeRingVolume.Value);
-            _source.volume = Mathf.Min(v, 0.6f);
-
-            if (v > 0.003f && !_source.isPlaying) _source.Play();
-            else if (v <= 0.003f && _source.isPlaying) _source.Stop();
+            float gain = Mathf.Pow(Mathf.Clamp01(_ring), 1.5f) * attack * Mathf.Clamp01(BridgeConfig.DazeRingVolume.Value) * 0.35f;
+            dsp.RingGain = Mathf.Min(gain, 0.3f);
+            dsp.Active = true;
         }
 
         // ================================================================== plumbing
 
-        private AudioListener FindListener()
+        /// <summary>Finds the game's audio listener and puts the processor beside it. Anything on the
+        /// same object as an AudioListener processes the listener's whole output.</summary>
+        private DazeDsp Attach()
         {
-            if (_listener != null && _listener.isActiveAndEnabled) return _listener;
+            if (_dsp != null && _listener != null && _listener.isActiveAndEnabled) return _dsp;
             if (Time.unscaledTime < _nextListenerLookup) return null;
             _nextListenerLookup = Time.unscaledTime + 1f;
 
-            // The old listener is gone or has moved: hand its filter back before taking a new one.
-            ReleaseFilter();
+            // The old listener is gone or has moved: take the processor off it before using a new one.
+            Release();
 
             AudioListener found = null;
             var p = GTPlayer.Instance;
             var cam = p != null ? p.mainCamera : null;
             if (cam != null) found = cam.GetComponent<AudioListener>();
             if (found == null) found = FindFirstObjectByType<AudioListener>();
+            if (found == null) return null;
+
             _listener = found;
-            return _listener;
-        }
-
-        private bool BuildRing()
-        {
-            try
-            {
-                // A one-second loop of three sines a few Hz apart, so it shimmers slowly the way a
-                // real ring does instead of sounding like a test tone. Every frequency is a whole
-                // number, so the loop closes on a whole cycle and has no seam.
-                var data = new float[SampleRate];
-                for (int i = 0; i < data.Length; i++)
-                {
-                    float t = i / (float)SampleRate;
-                    float s = Mathf.Sin(2f * Mathf.PI * RingHz * t) * 0.55f
-                            + Mathf.Sin(2f * Mathf.PI * (RingHz + 37) * t) * 0.3f
-                            + Mathf.Sin(2f * Mathf.PI * (RingHz * 2 + 11) * t) * 0.1f;
-                    data[i] = s * 0.5f;
-                }
-                _clip = AudioClip.Create("NextBotsRagdoll.Ring", SampleRate, 1, SampleRate, false);
-                _clip.SetData(data, 0);
-
-                var go = new GameObject("NextBotsRagdoll.Ring");
-                go.transform.SetParent(transform, false);
-                _source = go.AddComponent<AudioSource>();
-                _source.clip = _clip;
-                _source.loop = true;
-                _source.playOnAwake = false;
-                _source.spatialBlend = 0f;
-                _source.volume = 0f;
-                // The point of the separate source: the muffling must not squash the whine.
-                _source.bypassListenerEffects = true;
-                _source.bypassReverbZones = true;
-                return true;
-            }
-            catch (System.Exception ex)
-            {
-                Plugin.Log.LogWarning("[Daze] could not build the ring: " + ex.Message);
-                BridgeConfig.DazeRingVolume.Value = 0f;
-                return false;
-            }
-        }
-
-        private void StopRing()
-        {
-            if (_source != null && _source.isPlaying) _source.Stop();
-        }
-
-        private void ReleaseFilter()
-        {
-            if (_filter == null) return;
-            if (_weAddedFilter) Destroy(_filter);
-            else
-            {
-                _filter.cutoffFrequency = _filterOldCutoff;
-                _filter.enabled = _filterWasEnabled;
-            }
-            _filter = null;
-            _weAddedFilter = false;
+            _dsp = found.gameObject.AddComponent<DazeDsp>();
+            Plugin.Log.LogInfo("[Daze] audio processing on the listener '" + found.name + "' at " +
+                               AudioSettings.outputSampleRate + " Hz");
+            return _dsp;
         }
 
         /// <summary>Puts everything back as it was: the game's audio is not ours to leave altered.</summary>
         private void Release()
         {
-            ReleaseFilter();
-            StopRing();
+            if (_dsp != null) Destroy(_dsp);
+            _dsp = null;
+            _listener = null;
+        }
+    }
+
+    /// <summary>
+    /// The audio processing itself, run on the audio thread by <c>OnAudioFilterRead</c>: a low-pass
+    /// over the whole mix, then the whine added on top of the result.
+    ///
+    /// <para>Everything here runs on a thread the engine owns, so it allocates nothing, touches no
+    /// Unity objects, and reads its three settings as plain fields the main thread writes.</para>
+    /// </summary>
+    public sealed class DazeDsp : MonoBehaviour
+    {
+        // Written by the main thread, read by the audio thread. Single floats and a bool are written
+        // atomically, and a value a buffer late is inaudible.
+        public volatile float Cutoff = 20000f;
+        public volatile float RingGain;
+        public volatile bool Active;
+
+        private int _rate = 48000;
+
+        // Biquad low-pass state, per channel.
+        private readonly float[] _z1 = new float[8];
+        private readonly float[] _z2 = new float[8];
+        private float _b0, _b1, _b2, _a1, _a2;
+        private float _coefCutoff = -1f;
+
+        // The whine: three sines a few Hz apart so it shimmers slowly, the way a real ring does,
+        // instead of sounding like a test tone.
+        private double _p1, _p2, _p3;
+        private float _lastGain;
+        private bool _wasActive;
+
+        private void Awake()
+        {
+            // Read here, on the main thread: the audio thread may not call into the engine.
+            _rate = AudioSettings.outputSampleRate;
+        }
+
+        private void OnAudioFilterRead(float[] data, int channels)
+        {
+            if (!Active)
+            {
+                if (_wasActive) Reset();
+                return;
+            }
+            _wasActive = true;
+
+            if (channels < 1 || channels > 8) return;
+
+            float cutoff = Cutoff;
+            bool filtering = cutoff < 19000f;
+            if (filtering && Mathf.Abs(cutoff - _coefCutoff) > 1f) Coefficients(cutoff);
+
+            int frames = data.Length / channels;
+            float gainTo = RingGain;
+            float gainFrom = _lastGain;
+
+            double inc1 = 2.0 * System.Math.PI * 3150.0 / _rate;
+            double inc2 = 2.0 * System.Math.PI * 3187.0 / _rate;
+            double inc3 = 2.0 * System.Math.PI * 6311.0 / _rate;
+
+            for (int i = 0; i < frames; i++)
+            {
+                // The whine, with its gain ramped across the buffer so it never steps.
+                float g = gainFrom + (gainTo - gainFrom) * (i / (float)frames);
+                float ring = 0f;
+                if (g > 1e-6f)
+                {
+                    ring = (float)(System.Math.Sin(_p1) * 0.55 + System.Math.Sin(_p2) * 0.3 + System.Math.Sin(_p3) * 0.1) * g;
+                }
+                _p1 += inc1; _p2 += inc2; _p3 += inc3;
+
+                int at = i * channels;
+                for (int c = 0; c < channels; c++)
+                {
+                    float x = data[at + c];
+
+                    if (filtering)
+                    {
+                        // Direct form II transposed.
+                        float y = _b0 * x + _z1[c];
+                        _z1[c] = _b1 * x - _a1 * y + _z2[c];
+                        _z2[c] = _b2 * x - _a2 * y;
+                        x = y;
+                    }
+
+                    // After the filter, so nothing the filter does can reach it.
+                    data[at + c] = x + ring;
+                }
+            }
+
+            // Keep the phases small; a double drifts audibly after hours otherwise.
+            const double twoPi = 2.0 * System.Math.PI;
+            if (_p1 > twoPi) _p1 -= twoPi;
+            if (_p2 > twoPi) _p2 -= twoPi;
+            if (_p3 > twoPi) _p3 -= twoPi;
+            _lastGain = gainTo;
+        }
+
+        /// <summary>A second-order Butterworth low-pass: flat below the cutoff and rolling off
+        /// smoothly above it, with no resonant bump to colour the sound.</summary>
+        private void Coefficients(float cutoff)
+        {
+            float w0 = 2f * Mathf.PI * Mathf.Min(cutoff, _rate * 0.45f) / _rate;
+            float cos = Mathf.Cos(w0);
+            float alpha = Mathf.Sin(w0) / (2f * 0.7071f);
+
+            float a0 = 1f + alpha;
+            _b0 = (1f - cos) * 0.5f / a0;
+            _b1 = (1f - cos) / a0;
+            _b2 = _b0;
+            _a1 = -2f * cos / a0;
+            _a2 = (1f - alpha) / a0;
+            _coefCutoff = cutoff;
+        }
+
+        private void Reset()
+        {
+            System.Array.Clear(_z1, 0, _z1.Length);
+            System.Array.Clear(_z2, 0, _z2.Length);
+            _coefCutoff = -1f;
+            _lastGain = 0f;
+            _wasActive = false;
         }
     }
 }

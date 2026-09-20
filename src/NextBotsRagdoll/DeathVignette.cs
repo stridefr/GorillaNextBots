@@ -1,4 +1,3 @@
-using GorillaLocomotion;
 using NextBots.UI;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -6,45 +5,47 @@ using UnityEngine.Rendering;
 namespace NextBotsRagdoll
 {
     /// <summary>
-    /// What being caught does to the view: a red flash round the edges, the colour draining out
-    /// of everything, and then - slowly, while you are down and for a moment after you get up -
-    /// the world coming back.
+    /// What being caught does to the view: red at the edges for a moment, then the colour draining
+    /// out of everything and the edges going dark, held while you are down, and then the colour
+    /// slowly coming back as you get up.
     ///
-    /// <para><b>A veil, not a post-process.</b> The game renders through URP with its own stack,
-    /// and adding a full-screen effect to someone else's renderer is the sort of thing that
-    /// breaks on the next game update. This is a quad a hand's width in front of the eye with a
-    /// radial gradient on it: clear enough in the middle to play through, dark at the edges. A
-    /// neutral grey veil across the whole view is what drains the colour - everything reads
-    /// closer to grey the more of it there is - so "coming back" is simply the veil fading.</para>
+    /// <para><b>What this can and cannot be.</b> Real desaturation - taking each pixel towards its own
+    /// grey - is a shader, and the game's build has none of URP's post-processing shaders in it, so
+    /// there is nothing to switch on. What a plain see-through layer can do is blend the picture
+    /// towards a flat grey, and that does drain the colour (the chroma is scaled by exactly what is
+    /// left) but also flattens the contrast, and a <i>light</i> grey reads as a white haze. So the
+    /// layer is a dark grey: it takes the colour out and dims the world, the way a low-health screen
+    /// does, instead of fogging it.</para>
     ///
-    /// <para><b>Comfort.</b> The middle of your view is never blacked out, the red is brief and
-    /// does not pulse, and the whole thing is one line to switch off. What it must never do is
-    /// hide the floor while you are trying to stand up, which is why the strength is capped well
-    /// short of opaque.</para>
+    /// <para><b>Two layers.</b> A grey wash across the whole view, which is what drains the colour, and a
+    /// separate edge layer that is red at first and goes dark. Keeping the red on its own layer is what
+    /// lets the middle of the view stay clear for the flash instead of the whole picture going red.</para>
     ///
-    /// <para><b>Only you see it.</b> It draws for your own views - the eye camera and, once the
-    /// ragdoll mod's third-person orbit takes over the monitor, that camera - and every other camera,
-    /// the kill cam's lens included, skips it. The monitor camera matters: it is what a screen
-    /// recording sees, and it is the view you are in the moment you are knocked down.</para>
+    /// <para><b>Sized from the camera.</b> Each layer is stretched to the camera's own field of view and
+    /// aspect ratio, with a margin, so it reaches the corners of a wide monitor as well as a square
+    /// headset eye. It is set per camera, just before that camera renders, which is also what lets one
+    /// pair of quads serve the headset and the monitor's third-person view.</para>
+    ///
+    /// <para><b>Comfort.</b> The red is brief and does not pulse, the middle of the view is never
+    /// blacked out, and it is one line to switch off.</para>
     /// </summary>
     public sealed class DeathVignette : MonoBehaviour
     {
         public static DeathVignette Instance { get; private set; }
 
-        /// <summary>How long the red takes to turn to grey.</summary>
+        /// <summary>How long the red takes to turn dark.</summary>
         private const float Drain = 0.45f;
 
         /// <summary>Nothing stays on the view for ever, whatever happens to the knockdown.</summary>
         private const float MaxHold = 20f;
 
-        private static readonly Color Blood = new Color(0.62f, 0.03f, 0.03f);
-        private static readonly Color Ash = new Color(0.46f, 0.47f, 0.52f);
+        private static readonly Color Blood = new Color(0.66f, 0.03f, 0.03f);
+        private static readonly Color DarkEdge = new Color(0.02f, 0.02f, 0.03f);
 
         private Transform _root;
-        private MeshRenderer _renderer;
-        private Material _material;
-        private Texture2D _gradient;
-        private Camera _eye;
+        private MeshRenderer _washRenderer, _edgeRenderer;
+        private Material _washMat, _edgeMat;
+        private Texture2D _washTex, _edgeTex;
 
         private float _started = -1f;
         private float _released = -1f;
@@ -69,7 +70,8 @@ namespace NextBotsRagdoll
         {
             if (Instance == this) Instance = null;
             if (_root != null) Destroy(_root.gameObject);
-            if (_gradient != null) Destroy(_gradient);
+            foreach (var o in new UnityEngine.Object[] { _washTex, _edgeTex, _washMat, _edgeMat })
+                if (o != null) Destroy(o);
         }
 
         // ================================================================== playing
@@ -89,12 +91,12 @@ namespace NextBotsRagdoll
             var mon = ViewCameras.Monitor;
             Plugin.Log.LogInfo("[Vignette] on | strength " + BridgeConfig.VignetteStrength.Value.ToString("0.00") +
                                " wash " + BridgeConfig.VignetteWash.Value.ToString("0.00") +
+                               " grey " + BridgeConfig.VignetteGrey.Value.ToString("0.00") +
                                " | eye camera " + (eye != null ? "'" + eye.name + "'" : "none") +
                                " | monitor camera " + (mon != null ? "'" + mon.name + "'" : "none"));
         }
 
-        /// <summary>On your feet again: the colour comes back over
-        /// <c>RecoverSeconds</c>.</summary>
+        /// <summary>On your feet again: the colour comes back over <c>RecoverSeconds</c>.</summary>
         public void Release()
         {
             if (_started >= 0f && _released < 0f) _released = Time.unscaledTime;
@@ -107,8 +109,8 @@ namespace NextBotsRagdoll
             float age = Time.unscaledTime - _started;
             float recover = BridgeConfig.VignetteRecoverSeconds.Value;
 
-            // Never held for ever: a knockdown that ends in some way this never hears about
-            // still lets go of the view.
+            // Never held for ever: a knockdown that ends in some way this never hears about still
+            // lets go of the view.
             if (_released < 0f && age > MaxHold) _released = Time.unscaledTime;
 
             float fade = 1f;
@@ -120,14 +122,24 @@ namespace NextBotsRagdoll
                 fade = Mathf.SmoothStep(1f, 0f, since / Mathf.Max(0.01f, recover));
             }
 
+            float strength = BridgeConfig.VignetteStrength.Value;
             float red = BridgeConfig.VignetteRedSeconds.Value;
-            var colour = age < red ? Blood : Color.Lerp(Blood, Ash, Mathf.Clamp01((age - red) / Drain));
+            float toDark = Mathf.Clamp01((age - red) / Drain);
 
-            // The red is the hit landing, so it is the strongest the effect ever gets.
-            float punch = age < red ? 1f : Mathf.Lerp(1f, 0.78f, Mathf.Clamp01((age - red) / Drain));
-            colour.a = BridgeConfig.VignetteStrength.Value * punch * fade;
+            // The edge: blood red for the hit, then dark, and never fully gone while you are down.
+            var edge = Color.Lerp(Blood, DarkEdge, toDark);
+            float punch = age < red ? 1f : Mathf.Lerp(1f, 0.68f, toDark);
+            edge.a = strength * punch * fade;
 
-            if (_material != null) UiResources.TrySetColor(_material, colour);
+            // The wash: the colour going out of the world. It builds through the red and the first
+            // moments after it - the hit lands first, then the world drains - and it is what fades
+            // slowly on the way back, which is the colour returning.
+            float grey = Mathf.Clamp01(BridgeConfig.VignetteGrey.Value);
+            var wash = new Color(grey, grey, grey * 1.04f, 0f);
+            wash.a = BridgeConfig.VignetteWash.Value * strength * Mathf.SmoothStep(0f, 1f, age / (red + Drain)) * fade;
+
+            if (_edgeMat != null) UiResources.TrySetColor(_edgeMat, edge);
+            if (_washMat != null) UiResources.TrySetColor(_washMat, wash);
         }
 
         private void Clear()
@@ -138,94 +150,129 @@ namespace NextBotsRagdoll
         }
 
         /// <summary>
-        /// Across whichever camera is about to render, set just before it does. Closer than anything
-        /// else we draw and wide enough that the edges are off the side of the view, which is what
-        /// makes it read as the view going dark rather than as a picture hanging in front of it.
+        /// In front of whichever camera is about to render, stretched to fill exactly what it sees.
+        /// The margin covers the ways a projection is not a clean rectangle: a headset eye's frustum is
+        /// lopsided, and a monitor can be any shape.
         /// </summary>
         private void PlaceFor(Camera cam)
         {
+            const float distance = 0.25f;
             var t = cam.transform;
-            const float distance = 0.22f;
+
+            float vfov = cam.fieldOfView;
+            if (vfov < 20f || vfov > 170f || cam.stereoEnabled) vfov = Mathf.Max(vfov, 100f);
+            float h = 2f * distance * Mathf.Tan(vfov * 0.5f * Mathf.Deg2Rad);
+            float aspect = cam.aspect > 0.2f ? cam.aspect : 1.6f;
+            float w = h * aspect;
+            float margin = cam.stereoEnabled ? 1.7f : 1.2f;
+
             _root.position = t.position + t.forward * distance;
             _root.rotation = Quaternion.LookRotation(t.forward, t.up);
-            _root.localScale = new Vector3(distance * 4.2f, distance * 4.2f, 1f);
+            _root.localScale = new Vector3(w * margin, h * margin, 1f);
         }
 
-        // ================================================================== the quad
-
-        private Camera Eye()
-        {
-            if (_eye != null) return _eye;
-            var p = GTPlayer.Instance;
-            _eye = p != null ? p.mainCamera : null;
-            return _eye;
-        }
+        // ================================================================== the layers
 
         private bool Build()
         {
             if (_root != null) return true;
-            if (Eye() == null) return false;
+            if (ViewCameras.Eye == null) return false;
 
             var go = new GameObject("NextBotsRagdoll.DeathVignette");
             go.transform.SetParent(transform, false);
             _root = go.transform;
 
-            go.AddComponent<MeshFilter>().sharedMesh = UiResources.Quad;
-            _renderer = go.AddComponent<MeshRenderer>();
-            _renderer.shadowCastingMode = ShadowCastingMode.Off;
-            _renderer.receiveShadows = false;
-            _renderer.lightProbeUsage = LightProbeUsage.Off;
-            _renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            _washTex = BuildWashTexture();
+            _edgeTex = BuildEdgeTexture();
+            _washMat = SeeThrough(_washTex, (int)RenderQueue.Overlay - 70);
+            _edgeMat = SeeThrough(_edgeTex, (int)RenderQueue.Overlay - 69);
 
-            _gradient = BuildGradient();
-            _material = SeeThrough(_gradient);
-            _renderer.sharedMaterial = _material;
+            _washRenderer = Layer("wash", _washMat);
+            _edgeRenderer = Layer("edge", _edgeMat);
+
             go.SetActive(false);
             return true;
         }
 
-        /// <summary>
-        /// The veil itself: a thin wash over the middle that thickens towards the edges. The
-        /// wash is what takes the colour out of what you are looking at; the thick edge is the
-        /// vignette. Built once, in code, so there is no image to ship.
-        /// </summary>
-        private Texture2D BuildGradient()
+        private MeshRenderer Layer(string name, Material mat)
         {
-            const int size = 128;
-            float wash = BridgeConfig.VignetteWash.Value;
+            var go = new GameObject(name);
+            go.transform.SetParent(_root, false);
+            go.AddComponent<MeshFilter>().sharedMesh = UiResources.Quad;
+            var r = go.AddComponent<MeshRenderer>();
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.lightProbeUsage = LightProbeUsage.Off;
+            r.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            r.sharedMaterial = mat;
+            return r;
+        }
 
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                name = "NextBotsRagdoll.Vignette",
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-                hideFlags = HideFlags.HideAndDontSave
-            };
-
-            var pixels = new Color32[size * size];
+        /// <summary>The wash: even across the view, a little heavier towards the edges so it reads as a
+        /// vignette and not a flat sheet.</summary>
+        private static Texture2D BuildWashTexture()
+        {
+            const int size = 64;
+            var tex = NewTexture(size, "NextBotsRagdoll.Wash");
+            var pix = new Color32[size * size];
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
-                    float dx = (x + 0.5f) / size * 2f - 1f;
-                    float dy = (y + 0.5f) / size * 2f - 1f;
-                    float r = Mathf.Sqrt(dx * dx + dy * dy) / 1.4142f;
-
-                    float edge = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.32f, 0.95f, r));
-                    float a = Mathf.Clamp01(wash + (1f - wash) * edge);
-                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                    float r = Radius(x, y, size);
+                    float a = Mathf.Lerp(0.78f, 1f, Mathf.SmoothStep(0.2f, 1f, r));
+                    pix[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
                 }
             }
-            tex.SetPixels32(pixels);
-            tex.Apply(false, false);
+            tex.SetPixels32(pix);
+            tex.Apply(false, true);
             return tex;
         }
 
+        /// <summary>The edge layer: clear across the middle of the view, coming in from about a third of
+        /// the way out and solid at the very edge and corners.</summary>
+        private static Texture2D BuildEdgeTexture()
+        {
+            const int size = 128;
+            var tex = NewTexture(size, "NextBotsRagdoll.Edge");
+            var pix = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float r = Radius(x, y, size);
+                    float a = Mathf.SmoothStep(0.33f, 0.98f, r);
+                    pix[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(pix);
+            tex.Apply(false, true);
+            return tex;
+        }
+
+        /// <summary>0 in the middle, 1 at the corners: distance from the centre over the distance to a
+        /// corner, so the edge layer reaches the corners of whatever shape the quad is stretched to.</summary>
+        private static float Radius(int x, int y, int size)
+        {
+            float dx = (x + 0.5f) / size * 2f - 1f;
+            float dy = (y + 0.5f) / size * 2f - 1f;
+            return Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy) / 1.4142f);
+        }
+
+        private static Texture2D NewTexture(int size, string name)
+        {
+            return new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = name, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+        }
+
         /// <summary>Alpha-blended, and drawn after the world.</summary>
-        private static Material SeeThrough(Texture tex)
+        private static Material SeeThrough(Texture tex, int queue)
         {
             Shader shader = null;
-            foreach (var name in new[] { "Sprites/Default", "UI/Default", "Universal Render Pipeline/Unlit" })
+            foreach (var name in new[] { "Sprites/Default", "UI/Default", "Universal Render Pipeline/Particles/Unlit" })
             {
                 try { shader = Shader.Find(name); } catch { /* try the next one */ }
                 if (shader != null) break;
@@ -244,34 +291,38 @@ namespace NextBotsRagdoll
             }
             m.mainTexture = tex;
             if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
-            m.renderQueue = (int)RenderQueue.Overlay - 60;
+            m.renderQueue = queue;
             UiResources.TrySetColor(m, new Color(1f, 1f, 1f, 0f));
             return m;
         }
 
-        // ================================================================== eye camera only
+        // ================================================================== which cameras see it
 
-        // The veil is on for the player's own views - the eye camera and the ragdoll mod's
+        // The layers are on for the player's own views - the eye camera and the ragdoll mod's
         // third-person monitor camera - and off for every other camera, each time one is about to
-        // render. Placing it here, per camera, is what lets one quad serve both views.
+        // render. Placing them here, per camera, is what lets one pair of quads serve both views.
         private void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (_renderer == null) return;
-            if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { _renderer.forceRenderingOff = true; return; }
-            _renderer.forceRenderingOff = false;
+            if (_washRenderer == null) return;
+            if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { SetShown(false); return; }
+            SetShown(true);
             PlaceFor(cam);
 
             // Said once per hit, so the log shows which camera actually drew it.
             if (!_loggedView)
             {
                 _loggedView = true;
-                Plugin.Log.LogInfo("[Vignette] drawing for camera '" + cam.name + "'");
+                Plugin.Log.LogInfo("[Vignette] drawing for camera '" + cam.name + "' | fov " +
+                                   cam.fieldOfView.ToString("0") + " aspect " + cam.aspect.ToString("0.00"));
             }
         }
 
-        private void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
+        private void OnEndCamera(ScriptableRenderContext ctx, Camera cam) => SetShown(false);
+
+        private void SetShown(bool on)
         {
-            if (_renderer != null) _renderer.forceRenderingOff = true;
+            if (_washRenderer != null) _washRenderer.forceRenderingOff = !on;
+            if (_edgeRenderer != null) _edgeRenderer.forceRenderingOff = !on;
         }
     }
 }
