@@ -69,6 +69,7 @@ namespace NextBotsRagdoll
         public static ConfigEntry<float> VignetteStrength;
         public static ConfigEntry<float> VignetteWash;
         public static ConfigEntry<float> VignetteGrey;
+        public static ConfigEntry<float> VignetteSeconds;
         public static ConfigEntry<float> VignetteRedSeconds;
         public static ConfigEntry<float> VignetteRecoverSeconds;
 
@@ -246,12 +247,17 @@ namespace NextBotsRagdoll
                                       "0 = edges only. This is what fades slowly on the way back, which is " +
                                       "the colour returning.",
                     new AcceptableValueRange<float>(0f, 1f)));
-            VignetteGrey = cfg.Bind(V, "Grey", 0.38f,
-                new ConfigDescription("How light the wash is. 0 is nearly black, which dims the world as it drains " +
-                                      "the colour; higher looks like a white haze. The real desaturation a " +
-                                      "post-process would give is not available in this game, and a see-through " +
-                                      "grey is the nearest thing.",
+            VignetteGrey = cfg.Bind(V, "Grey", 0.2f,
+                new ConfigDescription("How light the wash is, and the one that matters most. The wash blends the " +
+                                      "picture towards this grey, so a grey lighter than the scene brightens it " +
+                                      "into a white haze and a darker one dims it. 0.2 leaves a dark map about as " +
+                                      "bright as it was and dims a bright one a little. Lower it for a bright map.",
                     new AcceptableValueRange<float>(0f, 0.8f)));
+            VignetteSeconds = cfg.Bind(V, "Seconds", 6f,
+                new ConfigDescription("How long the whole effect takes to ease away by itself, starting just after " +
+                                      "the flash. It lessens the whole time you are down, so by the time you stand " +
+                                      "it is mostly gone and the return is smooth.",
+                    new AcceptableValueRange<float>(1f, 30f)));
             VignetteRedSeconds = cfg.Bind(V, "RedSeconds", 0.3f,
                 new ConfigDescription("How long the red flash holds before it turns grey.",
                     new AcceptableValueRange<float>(0f, 2f)));

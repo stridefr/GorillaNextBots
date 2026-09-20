@@ -42,6 +42,7 @@ namespace NextBotsRagdoll
 
         private AudioListener _listener;
         private DazeDsp _dsp;
+        private bool _dspNeedsSample;
         private float _nextListenerLookup;
 
         private void Awake() => Instance = this;
@@ -66,9 +67,19 @@ namespace NextBotsRagdoll
             power = Mathf.Clamp01(power);
             if (power < 0.05f) return;
 
+            // The bang first, at the head, then the ringing behind it. Only for a proper hit; a bump
+            // that barely registers should not go off like a flashbang.
+            if (power >= 0.5f && ImpactSounds.Instance != null)
+            {
+                var eye = ViewCameras.Eye;
+                if (eye != null) ImpactSounds.Instance.PlayConcussion(eye.transform.position, 0.55f + 0.3f * power);
+            }
+
+            bool fresh = _muffle <= 0.001f && _ring <= 0.001f;
             _muffle = Mathf.Max(_muffle, power);
             _ring = Mathf.Max(_ring, power);
             _sinceHit = 0f;
+            if (fresh) _dspNeedsSample = true;
 
             Plugin.Log.LogInfo("[Daze] hit " + power.ToString("0.00") + " | muffle " +
                                BridgeConfig.DazeMuffle.Value.ToString("0.00") + " ring " +
@@ -101,6 +112,20 @@ namespace NextBotsRagdoll
 
             var dsp = Attach();
             if (dsp == null) return;
+
+            // A WAV in the ring folder replaces the generated tone. Looked up once per effect, not
+            // every frame: reading a clip's samples is not free.
+            if (_dspNeedsSample)
+            {
+                _dspNeedsSample = false;
+                float[] mono; int rate;
+                if (ImpactSounds.Instance != null && ImpactSounds.Instance.TryGetRing(out mono, out rate))
+                {
+                    dsp.SetSample(mono, rate);
+                    Plugin.Log.LogInfo("[Daze] ringing from the ring folder's WAV (" + mono.Length + " samples at " + rate + " Hz)");
+                }
+                else dsp.SetSample(null, 0);
+            }
 
             // Cutoff runs on a log scale, because that is how hearing works: halving the frequency is
             // the same step wherever you start. Muffle sets how far down it can go.
@@ -140,6 +165,7 @@ namespace NextBotsRagdoll
 
             _listener = found;
             _dsp = found.gameObject.AddComponent<DazeDsp>();
+            _dspNeedsSample = true;
             Plugin.Log.LogInfo("[Daze] audio processing on the listener '" + found.name + "' at " +
                                AudioSettings.outputSampleRate + " Hz");
             return _dsp;
@@ -168,6 +194,38 @@ namespace NextBotsRagdoll
         public volatile float Cutoff = 20000f;
         public volatile float RingGain;
         public volatile bool Active;
+
+        // An optional WAV to ring with instead of the sines, already made loopable. Swapped in as a
+        // whole array reference, so the audio thread sees either the old one or the new, never half.
+        private volatile float[] _sample;
+        private double _samplePos;
+        private double _sampleStep = 1.0;
+
+        /// <summary>Use this mono WAV for the ringing, looped, in place of the generated tone. Null goes
+        /// back to the tone.</summary>
+        public void SetSample(float[] mono, int rate)
+        {
+            if (mono == null || mono.Length < 512 || rate <= 0) { _sample = null; return; }
+
+            // Loud enough to matter, and a loop with no seam: the tail is faded into the head over the
+            // last stretch, so the end runs straight into the start.
+            float peak = 0.0001f;
+            for (int i = 0; i < mono.Length; i++) peak = Mathf.Max(peak, Mathf.Abs(mono[i]));
+
+            int x = Mathf.Min(mono.Length / 4, Mathf.Max(64, rate / 10));
+            int len = mono.Length - x;
+            var loop = new float[len];
+            for (int i = 0; i < len; i++) loop[i] = mono[i] / peak;
+            for (int i = 0; i < x; i++)
+            {
+                float t = i / (float)x;
+                loop[i] = (mono[i] * t + mono[len + i] * (1f - t)) / peak;
+            }
+
+            _sampleStep = rate / (double)_rate;
+            _samplePos = 0;
+            _sample = loop;
+        }
 
         private int _rate = 48000;
 
@@ -208,6 +266,7 @@ namespace NextBotsRagdoll
             float gainTo = RingGain;
             float gainFrom = _lastGain;
 
+            var sample = _sample;
             double inc1 = 2.0 * System.Math.PI * 3150.0 / _rate;
             double inc2 = 2.0 * System.Math.PI * 3187.0 / _rate;
             double inc3 = 2.0 * System.Math.PI * 6311.0 / _rate;
@@ -219,7 +278,19 @@ namespace NextBotsRagdoll
                 float ring = 0f;
                 if (g > 1e-6f)
                 {
-                    ring = (float)(System.Math.Sin(_p1) * 0.55 + System.Math.Sin(_p2) * 0.3 + System.Math.Sin(_p3) * 0.1) * g;
+                    if (sample != null)
+                    {
+                        int i0 = (int)_samplePos;
+                        int i1 = i0 + 1 >= sample.Length ? 0 : i0 + 1;
+                        float f = (float)(_samplePos - i0);
+                        ring = (sample[i0] + (sample[i1] - sample[i0]) * f) * g;
+                        _samplePos += _sampleStep;
+                        if (_samplePos >= sample.Length) _samplePos -= sample.Length;
+                    }
+                    else
+                    {
+                        ring = (float)(System.Math.Sin(_p1) * 0.55 + System.Math.Sin(_p2) * 0.3 + System.Math.Sin(_p3) * 0.1) * g;
+                    }
                 }
                 _p1 += inc1; _p2 += inc2; _p3 += inc3;
 

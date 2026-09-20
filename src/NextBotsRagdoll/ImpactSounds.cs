@@ -45,6 +45,12 @@ namespace NextBotsRagdoll
         public const string Hit = "hit";
         public const string Death = "death";
 
+        /// <summary>The bang before the ring: Counter-Strike's flashbang, from the player's own install.</summary>
+        public const string Concussion = "concussion";
+
+        /// <summary>Optional. A WAV here replaces the generated ear-ringing tone.</summary>
+        public const string Ring = "ring";
+
         /// <summary>Clear of GT's own codes, NextBots' 140-146 and GorillaRagdoll's 150-151.</summary>
         public const byte EvImpact = 152;
         private const byte NetProtocol = 1;
@@ -127,7 +133,7 @@ namespace NextBotsRagdoll
             try
             {
                 System.IO.Directory.CreateDirectory(Directory);
-                foreach (var set in new[] { Soft, Hard, Break, Hit, Death })
+                foreach (var set in new[] { Soft, Hard, Break, Hit, Death, Concussion, Ring })
                     System.IO.Directory.CreateDirectory(Path.Combine(Directory, set));
 
                 var readme = Path.Combine(Directory, "README.txt");
@@ -244,6 +250,49 @@ namespace NextBotsRagdoll
         /// 0.8. Silent if the death folder is empty - a stand-in from another set would say
         /// something different from what happened.
         /// </summary>
+        /// <summary>The bang that comes just before the ringing. Silent if the folder is empty.</summary>
+        public void PlayConcussion(Vector3 position, float volume)
+        {
+            if (!BridgeConfig.SoundsEnabled.Value) return;
+            Play(Concussion, position, volume, 1f);
+        }
+
+        /// <summary>
+        /// A WAV the player has put in the ring folder, as mono samples and its rate, for the ringing to
+        /// use in place of the generated tone. False if there is none.
+        /// </summary>
+        public bool TryGetRing(out float[] mono, out int rate)
+        {
+            mono = null;
+            rate = 0;
+
+            List<AudioClip> clips;
+            if (!_sets.TryGetValue(Ring, out clips) || clips.Count == 0) return false;
+
+            try
+            {
+                var clip = clips[0];
+                int ch = Mathf.Max(1, clip.channels);
+                var all = new float[clip.samples * ch];
+                if (!clip.GetData(all, 0)) return false;
+
+                mono = new float[clip.samples];
+                for (int i = 0; i < mono.Length; i++)
+                {
+                    float sum = 0f;
+                    for (int c = 0; c < ch; c++) sum += all[i * ch + c];
+                    mono[i] = sum / ch;
+                }
+                rate = clip.frequency;
+                return mono.Length > 256;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning("[Sound] could not read the ring WAV: " + ex.Message);
+                return false;
+            }
+        }
+
         public void PlayDeath(Vector3 position)
         {
             if (!BridgeConfig.SoundsEnabled.Value) return;
@@ -396,6 +445,8 @@ namespace NextBotsRagdoll
         {
             if (string.Equals(set, Soft, StringComparison.OrdinalIgnoreCase)) return null;
             if (string.Equals(set, Death, StringComparison.OrdinalIgnoreCase)) return null;
+            if (string.Equals(set, Concussion, StringComparison.OrdinalIgnoreCase)) return null;
+            if (string.Equals(set, Ring, StringComparison.OrdinalIgnoreCase)) return null;
             if (string.Equals(set, Hard, StringComparison.OrdinalIgnoreCase)) return Soft;
             if (string.Equals(set, Break, StringComparison.OrdinalIgnoreCase)) return Hard;
             if (string.Equals(set, Hit, StringComparison.OrdinalIgnoreCase)) return Break;
@@ -414,6 +465,10 @@ one is picked at random each time. File names do not matter.
   break/         a very hard landing - the bone crunch
   hit/           the moment a bot slams into you
   death/         someone gets caught (Garry's Mod's Player.Death)
+  concussion/    the bang just before your ears ring (Counter-Strike's flashbang)
+  ring/          optional: a WAV here replaces the generated ear-ringing tone. It loops, so pick
+                 one that is a steady tone. Nothing is imported for this one: no Source game
+                 ships a tinnitus sound, the engine makes it with audio effects.
 
 If you own Garry's Mod or Half-Life 2 on Steam, EMPTY folders here are filled for you on
 startup from your own install (ImportFromSourceGames in the config). Nothing is downloaded.

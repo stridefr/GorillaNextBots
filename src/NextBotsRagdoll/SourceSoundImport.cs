@@ -35,6 +35,10 @@ namespace NextBotsRagdoll
             { ImpactSounds.Break, Files("physics/body/body_medium_break{0}.wav", 2, 3, 4) },
             { ImpactSounds.Hit, Files("physics/flesh/flesh_impact_hard{0}.wav", 1, 2, 3, 4, 5, 6) },
             { ImpactSounds.Death, Files("player/pl_pain{0}.wav", 5, 6, 7) },
+
+            // Counter-Strike's flashbang, which Garry's Mod keeps in content_cstrike_dir.vpk: the
+            // bang that comes just before the ringing. The ringing itself is not a file in any Source game.
+            { ImpactSounds.Concussion, Files("weapons/flashbang/flashbang_explode{0}.wav", 1, 2) },
         };
 
         private static string[] Files(string pattern, params int[] n)
@@ -64,6 +68,16 @@ namespace NextBotsRagdoll
                 }
 
                 var archive = Vpk.Open(vpk);
+
+                // Some sets live in another archive beside the first one.
+                Vpk strike = null;
+                try
+                {
+                    var strikePath = Path.Combine(Path.GetDirectoryName(vpk), "content_cstrike_dir.vpk");
+                    if (File.Exists(strikePath)) strike = Vpk.Open(strikePath);
+                }
+                catch { /* it is optional */ }
+
                 int copied = 0;
                 foreach (var set in empty)
                 {
@@ -72,6 +86,7 @@ namespace NextBotsRagdoll
                     foreach (var file in Sets[set])
                     {
                         var data = archive.Read(file);
+                        if (data == null && strike != null) data = strike.Read(file);
                         if (data == null) continue;
                         File.WriteAllBytes(Path.Combine(dir, Path.GetFileName(file)), data);
                         copied++;

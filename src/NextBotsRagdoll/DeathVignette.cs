@@ -92,6 +92,8 @@ namespace NextBotsRagdoll
             Plugin.Log.LogInfo("[Vignette] on | strength " + BridgeConfig.VignetteStrength.Value.ToString("0.00") +
                                " wash " + BridgeConfig.VignetteWash.Value.ToString("0.00") +
                                " grey " + BridgeConfig.VignetteGrey.Value.ToString("0.00") +
+                               " over " + BridgeConfig.VignetteSeconds.Value.ToString("0.0") + "s" +
+                               " | colour space " + QualitySettings.activeColorSpace +
                                " | eye camera " + (eye != null ? "'" + eye.name + "'" : "none") +
                                " | monitor camera " + (mon != null ? "'" + mon.name + "'" : "none"));
         }
@@ -126,21 +128,38 @@ namespace NextBotsRagdoll
             float red = BridgeConfig.VignetteRedSeconds.Value;
             float toDark = Mathf.Clamp01((age - red) / Drain);
 
-            // The edge: blood red for the hit, then dark, and never fully gone while you are down.
-            var edge = Color.Lerp(Blood, DarkEdge, toDark);
-            float punch = age < red ? 1f : Mathf.Lerp(1f, 0.68f, toDark);
-            edge.a = strength * punch * fade;
+            // The whole effect lessens by itself: full for the flash and the moments after it, then
+            // easing away over Seconds. By the time you are back on your feet most of it is already
+            // gone, so getting up only has a little left to hand back - which is what makes the return
+            // smooth instead of a step. Releasing fades whatever remains on top of that.
+            float hold = red + Drain;
+            float seconds = Mathf.Max(1f, BridgeConfig.VignetteSeconds.Value);
+            float level = 1f - Mathf.SmoothStep(0f, 1f, (age - hold) / seconds);
+            if (level <= 0.002f) { Clear(); return; }
+            level *= fade;
 
-            // The wash: the colour going out of the world. It builds through the red and the first
-            // moments after it - the hit lands first, then the world drains - and it is what fades
-            // slowly on the way back, which is the colour returning.
+            // The edge: blood red for the hit, then dark.
+            var edge = Space(Color.Lerp(Blood, DarkEdge, toDark));
+            float punch = age < red ? 1f : Mathf.Lerp(1f, 0.68f, toDark);
+            edge.a = strength * punch * level;
+
+            // The wash: the colour going out of the world. It builds through the red - the hit lands
+            // first, then the world drains - and then it is what lessens over time.
             float grey = Mathf.Clamp01(BridgeConfig.VignetteGrey.Value);
-            var wash = new Color(grey, grey, grey * 1.04f, 0f);
-            wash.a = BridgeConfig.VignetteWash.Value * strength * Mathf.SmoothStep(0f, 1f, age / (red + Drain)) * fade;
+            var wash = Space(new Color(grey, grey, grey * 1.04f, 0f));
+            wash.a = BridgeConfig.VignetteWash.Value * strength * Mathf.SmoothStep(0f, 1f, age / hold) * level;
 
             if (_edgeMat != null) UiResources.TrySetColor(_edgeMat, edge);
             if (_washMat != null) UiResources.TrySetColor(_washMat, wash);
         }
+
+        /// <summary>
+        /// The colours here are written the way the eye reads them - 0.2 is a dark grey. A project
+        /// rendering in linear colour space wants them converted, or the same 0.2 lands as a light
+        /// grey, and a light grey over the picture is exactly the white haze this is meant not to be.
+        /// </summary>
+        private static Color Space(Color c) =>
+            QualitySettings.activeColorSpace == ColorSpace.Linear ? c.linear : c;
 
         private void Clear()
         {
@@ -156,15 +175,23 @@ namespace NextBotsRagdoll
         /// </summary>
         private void PlaceFor(Camera cam)
         {
-            const float distance = 0.25f;
             var t = cam.transform;
+
+            // As close as it can be. Anything nearer the camera than this layer pokes through it -
+            // a wall you stand next to cuts a hole in the wash - and the one place nothing can be
+            // nearer is closer than the camera's own near plane, which clips it away. So on a monitor
+            // it sits just beyond that. A headset has two eyes a few centimetres either side of the
+            // camera's centre, and at that range the layer would not cover both, so it stays back.
+            float distance = cam.stereoEnabled
+                ? 0.12f
+                : Mathf.Max(0.02f, cam.nearClipPlane * 1.5f + 0.002f);
 
             float vfov = cam.fieldOfView;
             if (vfov < 20f || vfov > 170f || cam.stereoEnabled) vfov = Mathf.Max(vfov, 100f);
             float h = 2f * distance * Mathf.Tan(vfov * 0.5f * Mathf.Deg2Rad);
             float aspect = cam.aspect > 0.2f ? cam.aspect : 1.6f;
             float w = h * aspect;
-            float margin = cam.stereoEnabled ? 1.7f : 1.2f;
+            float margin = cam.stereoEnabled ? 1.9f : 1.2f;
 
             _root.position = t.position + t.forward * distance;
             _root.rotation = Quaternion.LookRotation(t.forward, t.up);
@@ -313,7 +340,8 @@ namespace NextBotsRagdoll
             {
                 _loggedView = true;
                 Plugin.Log.LogInfo("[Vignette] drawing for camera '" + cam.name + "' | fov " +
-                                   cam.fieldOfView.ToString("0") + " aspect " + cam.aspect.ToString("0.00"));
+                                   cam.fieldOfView.ToString("0") + " aspect " + cam.aspect.ToString("0.00") +
+                                   " near " + cam.nearClipPlane.ToString("0.000") + (cam.stereoEnabled ? " stereo" : ""));
             }
         }
 

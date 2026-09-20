@@ -223,7 +223,7 @@ are up - which reads as the colour coming back into the world.
   URP's post-processing shaders (no UberPost, no Bloom) to drive from a Volume. A see-through layer
   blends towards a flat grey, which scales the chroma by what is left and so does drain colour, but
   also flattens contrast, and a light grey looks like a white haze. So it is a dark grey (`Grey`,
-  0.38), plus a separate edge layer that is red for the hit and then dark. Each is stretched to the
+  0.2), plus a separate edge layer that is red for the hit and then dark. Each is stretched to the
   camera's own field of view and aspect with a margin, so it reaches the corners of any monitor.
 
 ## 15. Landing dust (built)
@@ -278,3 +278,25 @@ and needs a shader, so the in-game version is a sprite approximation of it and s
   hard landing. A second hit only lifts the level back to its own strength; it never stacks.
 - Comfort: quiet by default, the volume hard-capped, one line to switch off. The game's listener is
   handed back exactly as it was when the effect ends.
+
+### What the ear ring is, and what it is not
+
+Searched every WAV in the Counter-Strike: Source, Half-Life 2 and GMod content on a Steam install for
+a tinnitus sound: 3,452 files, measured for loudness, tone and steadiness. **There is not one.**
+Source makes the ringing with its engine audio effects (DSP), not from a file. The flashbang WAVs are
+only the bang; the candidate tones (equipment beeps and squeals) wobble too much in pitch and volume
+to loop as a ring. So the ring stays generated, three sines, and the authentic Source piece used is
+the CS:S flashbang bang (`weapons/flashbang/flashbang_explode1.wav`, `2`), auto-imported into
+`sounds/concussion/` from the player's own install and played first. A WAV placed in `sounds/ring/`
+replaces the generated tone: looped with a crossfade so there is no seam, and mixed in after the
+muffling like the tone is.
+
+### Why the overlay looked like a white plane (fixed)
+
+Two causes. It brightened the scene: a wash blends the picture towards its grey, so a grey lighter
+than the scene lifts it - 0.38 over a dark map made it 49% brighter, which is a haze. 0.2 leaves a
+dark map at about 100% and dims a bright one a little, and still takes 40-55% of the colour out. And a
+project rendering in linear colour reads 0.2 as a much lighter grey unless it is converted; it is now.
+Near a wall the layer was clipped because it sat 25 cm from the camera and anything nearer poked
+through it; on a monitor it now sits just past the near plane, where nothing can be in front of it.
+The whole effect also lessens by itself over `Seconds` rather than holding until you stand.

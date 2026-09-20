@@ -98,12 +98,15 @@ When a bot gets within about a metre of you:
 - **Your hearing goes.** A heavy hit muffles everything, like hearing it from the next room, and
   leaves a thin high whine on top, both fading over a few seconds. The whine is added after the
   muffling, so it stays clear. Heavier bots hit harder, and only the very hardest ragdoll impacts
-  and landings do it as well. It is quiet by default; `[10. Impact daze]` has the whine's volume,
+  and landings do it as well. A Counter-Strike flashbang bang plays first, from your own install.
+  It is quiet by default; `[10. Impact daze]` has the whine's volume,
   how dull it gets (`Muffle`), how long it lasts, and `Enabled` to switch it off.
-- **The edges of your view flash red**, then the world loses about half its colour and dims while you
-  are down, and the colour comes back slowly once you are up. It is a dark grey wash rather than a
-  true desaturation, which this game has no way to do; `Grey` under `[8. Death vignette]` is how light
-  it is. It shows in the headset and on the monitor,
+- **The edges of your view flash red**, then the world loses about half its colour and the edges go
+  dark. It eases away by itself the whole time you are down - about six seconds - so by the time you
+  stand it is mostly gone and the return is smooth. It is a grey wash rather than a true
+  desaturation, which this game has no way to do: `Grey` under `[8. Death vignette]` is the grey it
+  blends towards, and a grey lighter than your scene looks like a white haze, so lower it on a bright
+  map. `Seconds` is how long it takes to fade. It shows in the headset and on the monitor,
   including the third-person orbit camera, so it is in a screen recording. `[8. Death vignette]` has the strength,
   how long the red holds and how slowly the colour returns.
 - **Dust.** A body landing throws up a ring of dust that runs out along the floor, grit that bounces,
