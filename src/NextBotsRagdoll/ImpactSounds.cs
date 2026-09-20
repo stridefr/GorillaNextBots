@@ -178,6 +178,9 @@ namespace NextBotsRagdoll
             if (speed < BridgeConfig.SoftSpeed.Value) return;
             _lastImpactAt = Time.time;
 
+            // The dust is independent of the sound: someone who has turned the sounds off still
+            // sees the body land.
+            if (Dust.Instance != null) Dust.Instance.Puff(position, speed);
             if (BridgeConfig.SoundsEnabled.Value) PlayImpact(position, speed);
             Broadcast(position, speed);
         }
@@ -250,7 +253,7 @@ namespace NextBotsRagdoll
         public void OnEvent(EventData e)
         {
             if (e.Code != EvImpact) return;
-            if (!BridgeConfig.SoundsEnabled.Value || !BridgeConfig.HearOthers.Value) return;
+            if (!WantsOthersSound && !WantsOthersDust) return;
 
             var payload = e.CustomData as byte[];
             if (payload == null || payload.Length < ImpactBytes) return;
@@ -296,15 +299,24 @@ namespace NextBotsRagdoll
                 // Due, or so far off that the clocks disagree - play it rather than hold it forever.
                 if (now < p.At && p.At - now < 2.0) continue;
                 _pending.RemoveAt(i);
-                PlayImpact(p.Position, p.Speed);
+                if (WantsOthersSound) PlayImpact(p.Position, p.Speed);
+                if (WantsOthersDust && Dust.Instance != null) Dust.Instance.Puff(p.Position, p.Speed);
             }
         }
 
         private static bool Finite(float f) => !float.IsNaN(f) && !float.IsInfinity(f);
 
+        private static bool WantsOthersSound => BridgeConfig.SoundsEnabled.Value && BridgeConfig.HearOthers.Value;
+        private static bool WantsOthersDust => BridgeConfig.DustEnabled.Value && BridgeConfig.DustForOthers.Value;
+
         /// <summary>The bot connecting. Deeper and harder for heavier bots, via the profile.</summary>
         public void OnBotHit(Vector3 position, BotProfile profile)
         {
+            // A hit that lands a body on the floor puffs like any other hard landing; one in mid-air
+            // finds no floor close enough and throws nothing.
+            if (Dust.Instance != null)
+                Dust.Instance.Puff(position, BridgeConfig.HardSpeed.Value * 1.3f * (profile != null ? profile.Scale : 1f), 2.2f);
+
             if (!BridgeConfig.SoundsEnabled.Value) return;
 
             string set = profile != null && !string.IsNullOrEmpty(profile.hitSound) ? profile.hitSound : Hit;

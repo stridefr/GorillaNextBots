@@ -229,15 +229,27 @@ are up - which reads as the colour coming back into the world.
 - The middle of the view is never opaque, the red does not pulse, and `Enabled = false` removes it.
 - Hidden from every camera that is not your eye, like the jumpscare and the death log.
 
-## 15. Landing dust (planned)
+## 15. Landing dust (built)
 
-A ring of dust where a ragdoll hits the ground: grains thrown outwards along the floor with a flat
-shockwave ring under them, swelling and thinning as they go, drifting up rather than falling back.
+`Dust.cs`, `DustLook.cs`. Fires from the same impacts as the landing sounds - your own through
+`ImpactSounds.OnImpact`, other players' through the same network message (event 152) - so it needs
+no new traffic. A downward ray from the contact point finds the floor and its normal; no floor
+close beneath, no dust, which is what keeps a wall hit or a mid-air bot hit from puffing.
 
-- The numbers are being designed outside the game first, in `tools/dust-demo`, which draws the
-  same maths on a canvas with sliders and writes the result to `dust.json`.
-- In game it hangs off the impact listeners that already fire the impact sounds, so the trigger,
-  the hit position and the speed threshold all exist. One `ParticleSystem` built in code, pooled,
-  with the hard impact threshold deciding how big the puff is.
-- Everyone should see everyone's, which means either sending it with the impact sound event (152)
-  or spawning it locally from the ragdoll poses other clients already receive.
+- **Sprites, shaded by hand.** A mod cannot ship a shader, so the game's own sprite shader draws the
+  puffs, in a `ParticleSystem` used only for drawing: it never emits, and every particle is written
+  each frame by `Dust`, which owns the physics. Unity billboards each puff to whichever camera is
+  looking, so the headset, the ragdoll mod's monitor camera and the kill cam all see it right.
+- What makes sprites read as smoke is done on the CPU: colour per puff from where it sits in the
+  cloud (lit side, dark middle and underside, sky above, floor bounce below), and a lit top and
+  shaded underside painted into the puff texture.
+- A ring of fast puffs as the leading edge, a slower layer left behind it, a column up the middle,
+  curl and wind, a crack of fine dust, 184 grit that bounce, a scuff mark that fades over 12 s.
+- Fixed budgets: 420 puffs, 260 grains, 6 scuffs. `Amount` is the knob for VR frame rate, since
+  the cost is overdraw.
+- **The look is `dust.json`**, the file the local design page (`tools/dust-demo`) writes. The mod
+  re-reads it within a second, and the page's save button also copies it into the game folder, so
+  a change on the page shows up in a running game.
+
+What it is not: the volumetric ray-marched cloud from the design page. That is too heavy for VR
+and needs a shader, so the in-game version is a sprite approximation of it and softer.

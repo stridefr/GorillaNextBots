@@ -83,6 +83,11 @@ has none. Existing files are never overwritten.
 | | `Strength` | 0.8 | never opaque in the middle, whatever this says |
 | | `Wash` | 0.32 | how much covers the middle rather than the edges (restart to change) |
 | | `RedSeconds` / `RecoverSeconds` | 0.3 / 2.5 | |
+| Landing dust | `Enabled` | true | ring of dust, grit and a scuff where a body lands |
+| | `ShowForOthers` | true | other players' landings too |
+| | `MinSpeed` | 4 | m/s; slower impacts throw nothing |
+| | `Amount` | 110 | puffs in the biggest burst - lower it if a landing dips VR frame rate |
+| | `Opacity` | 1 | multiplies the look's own thickness |
 | Impact sounds | `Enabled` | true | |
 | | `Volume` | 0.9 | |
 | | `SoftSpeed` / `HardSpeed` / `BreakSpeed` | 1.5 / 5 / 11 | m/s thresholds |
@@ -138,6 +143,8 @@ KnockdownBridge.cs  NextBots catch hooks, launch, knockdown timer, respawn, host
 KillCam.cs          the kill cam object: film-camera model, lens, VR screen, monitor PiP (off by default)
 Jumpscare.cs        the bot's face in yours at the moment it catches you
 DeathVignette.cs    the red flash, the colour draining, and the world coming back
+Dust.cs             the landing dust: ring, grit, crack of fine dust, scuff marks
+DustLook.cs         dust.json - the look, in the same file the design page writes
 BotProfiles.cs      per-bot weight files
 ImpactSounds.cs     Source-style sound sets, the listener on each ragdoll part, sharing (event 152)
 SourceSoundImport.cs  fills empty sound folders from the player's own GMod/HL2 install

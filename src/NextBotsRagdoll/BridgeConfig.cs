@@ -50,6 +50,12 @@ namespace NextBotsRagdoll
         public static ConfigEntry<float> KillCamZoomFov;
         public static ConfigEntry<int> KillCamResolution;
 
+        public static ConfigEntry<bool> DustEnabled;
+        public static ConfigEntry<bool> DustForOthers;
+        public static ConfigEntry<float> DustMinSpeed;
+        public static ConfigEntry<int> DustAmount;
+        public static ConfigEntry<float> DustOpacity;
+
         public static ConfigEntry<bool> VignetteEnabled;
         public static ConfigEntry<float> VignetteStrength;
         public static ConfigEntry<float> VignetteWash;
@@ -189,6 +195,24 @@ namespace NextBotsRagdoll
                 new ConfigDescription("Metres in front of your eyes. It is sized to fill your view from there, " +
                                       "so this mostly decides how close it feels.",
                     new AcceptableValueRange<float>(0.2f, 2f)));
+
+            const string U = "9. Landing dust";
+            DustEnabled = cfg.Bind(U, "Enabled", true,
+                "A body landing throws up a ring of dust with grit, and leaves a scuff on the floor. " +
+                "The look is in plugins/NextBotsRagdoll/dust.json, which the design page writes.");
+            DustForOthers = cfg.Bind(U, "ShowForOthers", true,
+                "Also show the dust from other players' landings.");
+            DustMinSpeed = cfg.Bind(U, "MinSpeed", 4f,
+                new ConfigDescription("Impacts slower than this (m/s) throw no dust. Below the hard-impact " +
+                                      "speed, so a heavy thud puffs and a gentle bump does not.",
+                    new AcceptableValueRange<float>(1f, 20f)));
+            DustAmount = cfg.Bind(U, "Amount", 110,
+                new ConfigDescription("Puffs in the biggest burst. The cost is mostly overdraw, so this is " +
+                                      "the number to lower if a landing dips your frame rate in VR.",
+                    new AcceptableValueRange<int>(20, 300)));
+            DustOpacity = cfg.Bind(U, "Opacity", 1f,
+                new ConfigDescription("Multiplies how solid the dust is, on top of the look's own thickness.",
+                    new AcceptableValueRange<float>(0.1f, 2f)));
 
             const string V = "8. Death vignette";
             VignetteEnabled = cfg.Bind(V, "Enabled", true,

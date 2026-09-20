@@ -100,6 +100,11 @@ When a bot gets within about a metre of you:
 - **The edges of your view flash red** and the colour drains out of everything while you are down,
   coming back over a couple of seconds once you are up. `[8. Death vignette]` has the strength,
   how long the red holds and how slowly the colour returns.
+- **Dust.** A body landing throws up a ring of dust that runs out along the floor, grit that bounces,
+  a crack of fine dust at the moment of impact, and a scuff mark that fades over ten seconds or so.
+  Everyone in the lobby sees it, including other players' landings. The look is in
+  `BepInEx/plugins/NextBotsRagdoll/dust.json`; the numbers under `[9. Landing dust]` in the config
+  switch it off, change how hard a landing has to be, and how many puffs the biggest burst uses.
 - **A kill cam** can film your body flying and then swing round to the bot that got you, on a
   floating screen in VR and in the corner of the monitor. It is **off by default** - it draws the
   whole scene a second time - so switch `Enabled` on under `[4. Kill cam]` if you want it.
