@@ -28,14 +28,22 @@ Three BepInEx plugins. Install all three for the full experience, or just the on
 - [BepInEx 5](https://github.com/BepInEx/BepInEx/releases), 64-bit (tested on 5.4.23)
 - [Utilla](https://github.com/sirkingbinx/Utilla)
 
-**Then:**
+**The easy way:** download **`GorillaNextBotsInstaller.exe`** from
+[Releases](../../releases) and run it. It finds Gorilla Tag, installs BepInEx if you have not got
+it, and puts the three mods in. Run it again any time to update - it tells you whether anything is
+new, and does nothing if not. Windows will warn about an unsigned program the first time: choose
+*More info*, then *Run anyway*. Close Gorilla Tag before updating, or Windows will not let the
+files be replaced.
+
+**By hand:**
 1. Download `GorillaNextBots-<version>.zip` from [Releases](../../releases).
 2. Extract it into your Gorilla Tag folder, so the DLLs end up in `Gorilla Tag\BepInEx\plugins\`.
    The zip already has the right folders inside.
 3. Start the game once. The mods create their folders and config files on first launch.
 
 To update, extract the new zip over the old one; your settings are kept. To uninstall, delete the
-`NextBots`, `GorillaRagdoll` and `NextBotsRagdoll` folders from `BepInEx\plugins\`.
+`NextBots`, `GorillaRagdoll` and `NextBotsRagdoll` folders from `BepInEx\plugins\`. The installer
+never touches your settings, bot images, sounds or death log style.
 
 ## Adding bots
 
@@ -186,6 +194,7 @@ That builds all three plugins and copies them into your game's `BepInEx\plugins`
 - [GorillaRagdoll](src/GorillaRagdoll/README.md): how the ragdoll drives GT's own avatar, and the camera modes
 - [NextBotsRagdoll](src/NextBotsRagdoll/README.md): knockdowns, kill cam, weights, sounds
   ([roadmap](src/NextBotsRagdoll/ROADMAP.md))
+- [Installer](src/Installer): the one-click installer and updater, a small .NET Framework app
 
 ## Credits
 
