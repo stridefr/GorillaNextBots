@@ -142,6 +142,8 @@ KillCam.cs          the kill cam object: film-camera model, lens, VR screen, mon
 DeathVignette.cs    the red flash, the colour draining, and the world coming back
 Daze.cs             muffled hearing (low-pass on the audio listener) and a generated ear-ringing tone
 ViewCameras.cs      which cameras are the player's own view, for effects drawn in front of it
+ScreenSaturation.cs adds a full-screen pass to the game's URP renderers and drives the shader
+Shaders/            the shader source, its compiled AssetBundle (embedded in the DLL), and how to rebuild it
 Dust.cs             the landing dust: ring, grit, crack of fine dust, scuff marks
 HardLanding.cs      landing hard on your feet: a fall that stops suddenly, read off the player's rigidbody
 DustLook.cs         dust.json - the look, in the same file the design page writes

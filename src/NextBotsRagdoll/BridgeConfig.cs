@@ -70,6 +70,9 @@ namespace NextBotsRagdoll
         public static ConfigEntry<float> VignetteWash;
         public static ConfigEntry<float> VignetteGrey;
         public static ConfigEntry<float> VignetteSeconds;
+        public static ConfigEntry<float> VignetteDrain;
+        public static ConfigEntry<float> VignetteDim;
+        public static ConfigEntry<bool> VignetteTrueInVr;
         public static ConfigEntry<float> VignetteRedSeconds;
         public static ConfigEntry<float> VignetteRecoverSeconds;
 
@@ -248,11 +251,25 @@ namespace NextBotsRagdoll
                                       "the colour returning.",
                     new AcceptableValueRange<float>(0f, 1f)));
             VignetteGrey = cfg.Bind(V, "Grey", 0.2f,
-                new ConfigDescription("How light the wash is, and the one that matters most. The wash blends the " +
+                new ConfigDescription("The FALLBACK wash, used only where the real desaturation is not (the headset, " +
+                                      "unless TrueDesaturationInVr is on). How light the wash is, and the one that matters most. The wash blends the " +
                                       "picture towards this grey, so a grey lighter than the scene brightens it " +
                                       "into a white haze and a darker one dims it. 0.2 leaves a dark map about as " +
                                       "bright as it was and dims a bright one a little. Lower it for a bright map.",
                     new AcceptableValueRange<float>(0f, 0.8f)));
+            VignetteDrain = cfg.Bind(V, "Drain", 0.9f,
+                new ConfigDescription("How much of the colour is taken out at the peak: 0 none, 1 black and white. " +
+                                      "This is real desaturation - every pixel is pulled towards its own grey, so " +
+                                      "brightness and contrast are kept - done by a shader this mod ships.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            VignetteDim = cfg.Bind(V, "Dim", 0.08f,
+                new ConfigDescription("A little darkening on top of the drain, at the peak. 0 keeps the picture exactly " +
+                                      "as bright as it was.",
+                    new AcceptableValueRange<float>(0f, 0.6f)));
+            VignetteTrueInVr = cfg.Bind(V, "TrueDesaturationInVr", false,
+                "Use the real desaturation in the headset too. Off by default: it is proven on the monitor, but VR " +
+                "renders both eyes in a single pass and that path has not been tested on a headset, so the headset " +
+                "keeps the dark grey wash instead. Turn it on to try it; if the headset view goes wrong, turn it off.");
             VignetteSeconds = cfg.Bind(V, "Seconds", 6f,
                 new ConfigDescription("How long the whole effect takes to ease away by itself, starting just after " +
                                       "the flash. It lessens the whole time you are down, so by the time you stand " +

@@ -219,12 +219,24 @@ are up - which reads as the colour coming back into the world.
 - Drawn for the eye camera and the monitor's third-person camera, hidden from every other, like the
   death log. It was once hidden from the monitor camera by mistake, so on a monitor in third person
   it never showed.
-- **Not a true desaturation, and cannot be.** That needs a shader, and this game's build has none of
-  URP's post-processing shaders (no UberPost, no Bloom) to drive from a Volume. A see-through layer
-  blends towards a flat grey, which scales the chroma by what is left and so does drain colour, but
-  also flattens contrast, and a light grey looks like a white haze. So it is a dark grey (`Grey`,
-  0.2), plus a separate edge layer that is red for the hit and then dark. Each is stretched to the
-  camera's own field of view and aspect with a margin, so it reaches the corners of any monitor.
+- **A see-through overlay cannot desaturate - a shader can, and the mod now ships one.** An overlay
+  blends every pixel towards the *same* grey, so it reads as the scene getting darker or hazier, never
+  as the colour draining out (0.38 grey over a dark map made it 49% brighter; 0.2 kept the brightness
+  but it was still just dimming). Real desaturation pulls each pixel towards *its own* luminance, which
+  needs to read the finished image. The game's build has none of URP's post-processing shaders to
+  borrow, so the mod carries its own: `Shaders/ScreenSaturation.shader`, compiled to an AssetBundle with
+  the game's own Unity version (6000.2.9f1), embedded in the DLL, run by a `FullScreenPassRendererFeature`
+  added to the URP renderers at start-up and switched on only while there is something to show. It runs
+  after everything else has drawn, so it sees transparents and the dust. Tested in the editor with URP by
+  rendering coloured cubes through the same class the mod uses: off = unchanged, full = saturation 0.000
+  with mean luminance unchanged, half = about half, vignette corner red and centre untouched, off again
+  = unchanged. The overlay layers remain as the fallback.
+- **Two traps found building it.** Unity's SRP shader stripper removes any shader whose `RenderPipeline`
+  tag does not match the build project's active pipeline, so a bundle built with no URP asset assigned
+  is an empty shell that reports "not supported" (fix: assign one before building). And Unity's built-in
+  stripping removes the built-in single-pass VR variant from a bundle built in a non-XR project, so the
+  shader has its own `NB_STEREO` keyword, turned on only in single-pass VR.
+- **VR is untested.** In a headset the mod keeps the dark grey wash unless `TrueDesaturationInVr` is on.
 
 ## 15. Landing dust (built)
 

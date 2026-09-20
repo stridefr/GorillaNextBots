@@ -1,6 +1,9 @@
+using System.IO;
+using System.Reflection;
 using NextBots.UI;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.XR;
 
 namespace NextBotsRagdoll
 {
@@ -50,6 +53,7 @@ namespace NextBotsRagdoll
         private float _started = -1f;
         private float _released = -1f;
         private bool _loggedView;
+        private bool _satTried;
 
         private void Awake() => Instance = this;
 
@@ -66,8 +70,44 @@ namespace NextBotsRagdoll
             Clear();
         }
 
+        private void Update()
+        {
+            // Installing the effect rebuilds the renderer, so it is done once, a while after start-up
+            // when nothing is loading, rather than at the moment of the first hit.
+            if (!_satTried && Time.realtimeSinceStartup > 8f && ViewCameras.Eye != null) InstallSaturation();
+        }
+
+        /// <summary>Puts the real desaturation in, if it can go. If not the overlay layers carry the effect.</summary>
+        private void InstallSaturation()
+        {
+            _satTried = true;
+            if (!BridgeConfig.VignetteEnabled.Value) return;
+
+            bool vr = XRSettings.enabled && XRSettings.isDeviceActive;
+            if (vr && !BridgeConfig.VignetteTrueInVr.Value)
+            {
+                Plugin.Log.LogInfo("[Saturation] a headset is active: using the dark grey wash (TrueDesaturationInVr is off)");
+                return;
+            }
+
+            byte[] bundle = null;
+            try
+            {
+                using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("nextbots.saturation"))
+                using (var ms = new MemoryStream())
+                {
+                    if (s != null) { s.CopyTo(ms); bundle = ms.ToArray(); }
+                }
+            }
+            catch (System.Exception ex) { Plugin.Log.LogWarning("[Saturation] could not read the embedded shader: " + ex.Message); }
+
+            bool singlePass = vr && XRSettings.stereoRenderingMode == XRSettings.StereoRenderingMode.SinglePassInstanced;
+            ScreenSaturation.Init(bundle, singlePass, m => Plugin.Log.LogInfo(m));
+        }
+
         private void OnDestroy()
         {
+            ScreenSaturation.Off();
             if (Instance == this) Instance = null;
             if (_root != null) Destroy(_root.gameObject);
             foreach (var o in new UnityEngine.Object[] { _washTex, _edgeTex, _washMat, _edgeMat })
@@ -149,6 +189,19 @@ namespace NextBotsRagdoll
             var wash = Space(new Color(grey, grey, grey * 1.04f, 0f));
             wash.a = BridgeConfig.VignetteWash.Value * strength * Mathf.SmoothStep(0f, 1f, age / hold) * level;
 
+            if (ScreenSaturation.Available)
+            {
+                // The real thing: pull every pixel towards its own grey, and lay the edge colour over
+                // the corners, in one pass over the finished picture. The layers below stay hidden.
+                float ramp = Mathf.SmoothStep(0f, 1f, age / hold) * level;
+                var vig = edge;
+                vig.a = 1f;
+                ScreenSaturation.Apply(BridgeConfig.VignetteDrain.Value * ramp,
+                                       BridgeConfig.VignetteDim.Value * ramp,
+                                       vig, edge.a, 0.3f);
+                return;
+            }
+
             if (_edgeMat != null) UiResources.TrySetColor(_edgeMat, edge);
             if (_washMat != null) UiResources.TrySetColor(_washMat, wash);
         }
@@ -163,6 +216,7 @@ namespace NextBotsRagdoll
 
         private void Clear()
         {
+            ScreenSaturation.Off();
             _started = -1f;
             _released = -1f;
             if (_root != null) _root.gameObject.SetActive(false);
@@ -331,6 +385,7 @@ namespace NextBotsRagdoll
         private void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
             if (_washRenderer == null) return;
+            if (ScreenSaturation.Available) { SetShown(false); return; }   // the real effect is drawing
             if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { SetShown(false); return; }
             SetShown(true);
             PlaceFor(cam);

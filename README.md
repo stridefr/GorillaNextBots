@@ -101,12 +101,15 @@ When a bot gets within about a metre of you:
   and landings do it as well. A Counter-Strike flashbang bang plays first, from your own install.
   It is quiet by default; `[10. Impact daze]` has the whine's volume,
   how dull it gets (`Muffle`), how long it lasts, and `Enabled` to switch it off.
-- **The edges of your view flash red**, then the world loses about half its colour and the edges go
-  dark. It eases away by itself the whole time you are down - about six seconds - so by the time you
-  stand it is mostly gone and the return is smooth. It is a grey wash rather than a true
-  desaturation, which this game has no way to do: `Grey` under `[8. Death vignette]` is the grey it
-  blends towards, and a grey lighter than your scene looks like a white haze, so lower it on a bright
-  map. `Seconds` is how long it takes to fade. It shows in the headset and on the monitor,
+- **The edges of your view flash red, and the colour drains out of the world.** It is real
+  desaturation - every pixel is pulled towards its own grey, so brightness and contrast are kept and
+  only the colour goes - done by a small shader the mod carries inside its DLL. The edges go dark, and
+  the whole thing eases away by itself over about six seconds, so by the time you stand it is mostly
+  gone and the return is smooth. `[8. Death vignette]` has `Drain` (how much colour goes), `Dim`,
+  `Seconds` (how long it takes to fade) and `Enabled`. **In the headset** it uses a dark grey wash
+  instead, because the real thing renders both eyes in a single pass and that has not been tested on a
+  headset; `TrueDesaturationInVr = true` turns it on to try, and `false` turns it back off if the view
+  goes wrong. It shows in the headset and on the monitor,
   including the third-person orbit camera, so it is in a screen recording. `[8. Death vignette]` has the strength,
   how long the red holds and how slowly the colour returns.
 - **Dust.** A body landing throws up a ring of dust that runs out along the floor, grit that bounces,
