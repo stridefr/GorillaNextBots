@@ -342,6 +342,9 @@ namespace NextBotsRagdoll
             // Before anything else, while the hit is still the thing you are reacting to.
             if (DeathVignette.Instance != null) DeathVignette.Instance.Begin();
 
+            // Heavier bots hit harder: an 80 kg bot is a solid hit, a 160 kg one is the worst there is.
+            if (Daze.Instance != null) Daze.Instance.Hit(Mathf.Clamp01(0.5f + 0.25f * profile.Scale));
+
             Vector3 dir;
             var launch = Launch(hit, torso, profile, out dir);
             Throw(puppet, launch, dir, profile.tumble >= 0f ? profile.tumble : BridgeConfig.Tumble.Value * profile.Scale);

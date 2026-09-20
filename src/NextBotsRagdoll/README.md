@@ -140,6 +140,8 @@ Plugin.cs           BepInEx entry
 KnockdownBridge.cs  NextBots catch hooks, launch, knockdown timer, respawn, host-side exclusion, F5
 KillCam.cs          the kill cam object: film-camera model, lens, VR screen, monitor PiP (off by default)
 DeathVignette.cs    the red flash, the colour draining, and the world coming back
+Daze.cs             muffled hearing (low-pass on the audio listener) and a generated ear-ringing tone
+ViewCameras.cs      which cameras are the player's own view, for effects drawn in front of it
 Dust.cs             the landing dust: ring, grit, crack of fine dust, scuff marks
 HardLanding.cs      landing hard on your feet: a fall that stops suddenly, read off the player's rigidbody
 DustLook.cs         dust.json - the look, in the same file the design page writes

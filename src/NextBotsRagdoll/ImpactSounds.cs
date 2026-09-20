@@ -181,6 +181,13 @@ namespace NextBotsRagdoll
             // The dust is independent of the sound: someone who has turned the sounds off still
             // sees the body land.
             if (Dust.Instance != null) Dust.Instance.Puff(position, speed);
+
+            // Only the hardest impacts ring your ears, and only your own body's: this is the local path.
+            if (BridgeConfig.DazeOnHardImpacts.Value && Daze.Instance != null &&
+                speed >= BridgeConfig.BreakSpeed.Value)
+                Daze.Instance.Hit(0.3f + 0.4f * Mathf.InverseLerp(BridgeConfig.BreakSpeed.Value,
+                                                                 BridgeConfig.BreakSpeed.Value * 2f, speed));
+
             if (BridgeConfig.SoundsEnabled.Value) PlayImpact(position, speed);
             Broadcast(position, speed);
         }

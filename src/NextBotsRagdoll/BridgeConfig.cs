@@ -53,6 +53,12 @@ namespace NextBotsRagdoll
         public static ConfigEntry<bool> HardLandingEnabled;
         public static ConfigEntry<float> HardLandingMinSpeed;
 
+        public static ConfigEntry<bool> DazeEnabled;
+        public static ConfigEntry<bool> DazeOnHardImpacts;
+        public static ConfigEntry<float> DazeRingVolume;
+        public static ConfigEntry<float> DazeMuffle;
+        public static ConfigEntry<float> DazeSeconds;
+
         public static ConfigEntry<bool> DustEnabled;
         public static ConfigEntry<bool> DustForOthers;
         public static ConfigEntry<float> DustMinSpeed;
@@ -203,6 +209,26 @@ namespace NextBotsRagdoll
             DustOpacity = cfg.Bind(U, "Opacity", 1f,
                 new ConfigDescription("Multiplies how solid the dust is, on top of the look's own thickness.",
                     new AcceptableValueRange<float>(0.1f, 2f)));
+
+            const string Z = "10. Impact daze";
+            DazeEnabled = cfg.Bind(Z, "Enabled", true,
+                "A heavy hit muffles everything you hear, as if underwater, and leaves a thin high whine on top; " +
+                "both fade as you come round. Heavier bots hit harder.");
+            DazeOnHardImpacts = cfg.Bind(Z, "OnHardImpacts", true,
+                "Also for very hard landings and slamming into things as a ragdoll, not only being caught. " +
+                "Only the very hardest count.");
+            DazeRingVolume = cfg.Bind(Z, "RingVolume", 0.3f,
+                new ConfigDescription("How loud the whine is at its worst. Quiet by default and hard-capped; " +
+                                      "0 turns the whine off and keeps the muffling.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            DazeMuffle = cfg.Bind(Z, "Muffle", 0.85f,
+                new ConfigDescription("How dull everything goes at its worst. 1 is very dull, though never silent; " +
+                                      "0 leaves the sound alone and keeps the whine.",
+                    new AcceptableValueRange<float>(0f, 1f)));
+            DazeSeconds = cfg.Bind(Z, "Seconds", 4.5f,
+                new ConfigDescription("Roughly how long it takes to clear. The whine lingers a little after the " +
+                                      "muffling has gone.",
+                    new AcceptableValueRange<float>(1f, 15f)));
 
             const string V = "8. Death vignette";
             VignetteEnabled = cfg.Bind(V, "Enabled", true,

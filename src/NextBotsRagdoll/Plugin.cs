@@ -25,7 +25,7 @@ namespace NextBotsRagdoll
     {
         public const string Guid = "com.stridefr.nextbotsragdoll";
         public const string Name = "NextBotsRagdoll";
-        public const string Version = "0.8.0";
+        public const string Version = "0.9.0";
 
         public static ManualLogSource Log { get; private set; }
 
@@ -41,6 +41,7 @@ namespace NextBotsRagdoll
             _host.AddComponent<ImpactSounds>();
             _host.AddComponent<KnockdownBridge>();
             _host.AddComponent<DeathVignette>();
+            _host.AddComponent<Daze>();
             _host.AddComponent<Dust>();
             _host.AddComponent<HardLanding>();
 

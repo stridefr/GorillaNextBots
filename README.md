@@ -95,6 +95,10 @@ When a bot gets within about a metre of you:
 
 - **You ragdoll**, and your body is thrown in the direction the bot was running. A faster bot
   throws you harder, a sprinting ambush hardest of all, and heavy bots hit harder still.
+- **Your hearing goes.** A heavy hit muffles everything, as if underwater, and leaves a thin high
+  whine on top, both fading over a few seconds. Heavier bots hit harder, and only the very hardest
+  ragdoll impacts and landings do it as well. It is quiet by default; `[10. Impact daze]` has the
+  whine's volume, how dull it gets, how long it lasts, and `Enabled` to switch it off.
 - **The edges of your view flash red** and the colour drains out of everything while you are down,
   coming back over a couple of seconds once you are up. It shows in the headset and on the monitor,
   including the third-person orbit camera, so it is in a screen recording. `[8. Death vignette]` has the strength,

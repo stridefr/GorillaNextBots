@@ -66,6 +66,11 @@ namespace NextBotsRagdoll
 
             _lastAt = Time.time;
             if (ImpactSounds.Instance != null) ImpactSounds.Instance.OnLanding(at, fall);
+
+            // A mild daze, and only for a fall well past the puff threshold.
+            if (BridgeConfig.DazeOnHardImpacts.Value && Daze.Instance != null &&
+                fall >= BridgeConfig.HardLandingMinSpeed.Value * 1.5f)
+                Daze.Instance.Hit(0.3f);
             Plugin.Log.LogInfo("[Landing] hard landing at " + fall.ToString("0.0") + " m/s");
         }
 

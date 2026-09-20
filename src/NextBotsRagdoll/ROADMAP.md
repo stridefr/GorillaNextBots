@@ -255,3 +255,20 @@ close beneath, no dust, which is what keeps a wall hit or a mid-air bot hit from
 
 What it is not: the volumetric ray-marched cloud from the design page. That is too heavy for VR
 and needs a shader, so the in-game version is a sprite approximation of it and softer.
+
+## 16. Impact daze (built)
+
+`Daze.cs`. A heavy hit sets a level from 0 to 1 and two things follow it.
+
+- **Muffling**: an `AudioLowPassFilter` on the game's audio listener, which sits on the whole mix, so
+  the music, ambience, other players and bots all go dull together. The cutoff runs from 22 kHz down
+  to 500 Hz on a log scale, and never silent.
+- **Ringing**: a one-second loop made in code - three sines a few Hz apart so it shimmers instead of
+  sounding like a test tone, all whole-number frequencies so the loop has no seam. It plays from its
+  own source with `bypassListenerEffects`, because otherwise the muffling would squash the very whine
+  it sits under. No sound file ships with it.
+- The ring has a longer tail than the muffle, so a whine lingers after the world has cleared.
+- Triggered by a bot catch (stronger for heavier bots), the very hardest ragdoll impacts, and a very
+  hard landing. A second hit only lifts the level back to its own strength; it never stacks.
+- Comfort: quiet by default, the volume hard-capped, one line to switch off. The game's listener is
+  handed back exactly as it was when the effect ends.
