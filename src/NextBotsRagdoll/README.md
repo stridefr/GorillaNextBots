@@ -72,13 +72,17 @@ has none. Existing files are never overwritten.
 | Knockdown | `DownSeconds` | 4 | 0 = until you get up yourself |
 | | `GetUpGrace` | 2 | seconds untargetable after getting up |
 | | `DownedPlayersAreSafe` | true | host setting |
-| Kill cam | `Enabled` | true | |
+| Kill cam | `Enabled` | **false** | a second render of the scene; on for the replay |
 | | `ShowCameraModel` | true | the film camera + view cone in the world |
 | | `HeadsetScreen` | true | floating screen in VR |
 | | `MonitorPictureInPicture` | true | top-right of the monitor |
 | | `FocusDelay` | 1.2 | seconds on the body before swinging to the bot |
 | | `Fov` / `ZoomFov` | 70 / 32 | |
 | | `Resolution` | 512 | width, 16:9 |
+| Death vignette | `Enabled` | true | red flash, colour drain, slow return |
+| | `Strength` | 0.8 | never opaque in the middle, whatever this says |
+| | `Wash` | 0.32 | how much covers the middle rather than the edges (restart to change) |
+| | `RedSeconds` / `RecoverSeconds` | 0.3 / 2.5 | |
 | Impact sounds | `Enabled` | true | |
 | | `Volume` | 0.9 | |
 | | `SoftSpeed` / `HardSpeed` / `BreakSpeed` | 1.5 / 5 / 11 | m/s thresholds |
@@ -131,8 +135,9 @@ Look in `BepInEx/LogOutput.log` for:
 ```
 Plugin.cs           BepInEx entry
 KnockdownBridge.cs  NextBots catch hooks, launch, knockdown timer, respawn, host-side exclusion, F5
-KillCam.cs          the kill cam object: film-camera model, lens, VR screen, monitor PiP
+KillCam.cs          the kill cam object: film-camera model, lens, VR screen, monitor PiP (off by default)
 Jumpscare.cs        the bot's face in yours at the moment it catches you
+DeathVignette.cs    the red flash, the colour draining, and the world coming back
 BotProfiles.cs      per-bot weight files
 ImpactSounds.cs     Source-style sound sets, the listener on each ragdoll part, sharing (event 152)
 SourceSoundImport.cs  fills empty sound folders from the player's own GMod/HL2 install

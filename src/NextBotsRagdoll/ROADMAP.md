@@ -216,3 +216,28 @@ the whole lobby is thrown by the same rules, and the host's wrist panel controls
 Heavy bots accelerate and turn more slowly, which makes them easier to dodge but harder-hitting.
 Light ones are twitchy. This needs per-bot settings in NextBots, which today has one global
 `NextBotSettings` shared by every bot. The bot profile file from #3 is the natural home for it.
+
+## 14. Death vignette (built)
+
+`DeathVignette.cs`. A quad a hand's width in front of the eye, with a radial gradient built in
+code: a thin wash over the middle that thickens to the edges. On a catch it is blood red, drains
+to ash grey over 0.45 s, holds while you are down, and fades out over `RecoverSeconds` once you
+are up - which reads as the colour coming back into the world.
+
+- A veil rather than a post-process, on purpose. Adding a full-screen pass to the game's own URP
+  renderer is the sort of thing that breaks on the next game update; a quad does not.
+- The middle of the view is never opaque, the red does not pulse, and `Enabled = false` removes it.
+- Hidden from every camera that is not your eye, like the jumpscare and the death log.
+
+## 15. Landing dust (planned)
+
+A ring of dust where a ragdoll hits the ground: grains thrown outwards along the floor with a flat
+shockwave ring under them, swelling and thinning as they go, drifting up rather than falling back.
+
+- The numbers are being designed outside the game first, in `tools/dust-demo`, which draws the
+  same maths on a canvas with sliders and writes the result to `dust.json`.
+- In game it hangs off the impact listeners that already fire the impact sounds, so the trigger,
+  the hit position and the speed threshold all exist. One `ParticleSystem` built in code, pooled,
+  with the hard impact threshold deciding how big the puff is.
+- Everyone should see everyone's, which means either sending it with the impact sound event (152)
+  or spawning it locally from the ragdoll poses other clients already receive.

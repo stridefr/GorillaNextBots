@@ -50,6 +50,12 @@ namespace NextBotsRagdoll
         public static ConfigEntry<float> KillCamZoomFov;
         public static ConfigEntry<int> KillCamResolution;
 
+        public static ConfigEntry<bool> VignetteEnabled;
+        public static ConfigEntry<float> VignetteStrength;
+        public static ConfigEntry<float> VignetteWash;
+        public static ConfigEntry<float> VignetteRedSeconds;
+        public static ConfigEntry<float> VignetteRecoverSeconds;
+
         public static ConfigEntry<bool> JumpscareEnabled;
         public static ConfigEntry<float> JumpscareSeconds;
         public static ConfigEntry<float> JumpscareOpacity;
@@ -110,8 +116,10 @@ namespace NextBotsRagdoll
                 "because only the host runs the bots.");
 
             const string C = "4. Kill cam";
-            KillCamEnabled = cfg.Bind(C, "Enabled", true,
-                "While you are down, a camera films your body flying and then turns to the bot that got you.");
+            KillCamEnabled = cfg.Bind(C, "Enabled", false,
+                "While you are down, a camera films your body flying and then turns to the bot that got you. " +
+                "Off by default: it is a second render of the whole scene, and the knockdown reads better " +
+                "without a picture in the corner competing with it.");
             KillCamModel = cfg.Bind(C, "ShowCameraModel", true,
                 "Draw the kill cam itself in the world - a little film camera with a blinking REC light " +
                 "and its view cone - so you can see where the shot is taken from. Only you see it.");
@@ -181,6 +189,26 @@ namespace NextBotsRagdoll
                 new ConfigDescription("Metres in front of your eyes. It is sized to fill your view from there, " +
                                       "so this mostly decides how close it feels.",
                     new AcceptableValueRange<float>(0.2f, 2f)));
+
+            const string V = "8. Death vignette";
+            VignetteEnabled = cfg.Bind(V, "Enabled", true,
+                "Being caught flashes the edges of your view red, drains the colour out of the world while " +
+                "you are down, and lets it come back as you get up.");
+            VignetteStrength = cfg.Bind(V, "Strength", 0.8f,
+                new ConfigDescription("How heavy it gets. The middle of your view is never blacked out, " +
+                                      "whatever this is set to.",
+                    new AcceptableValueRange<float>(0.1f, 1f)));
+            VignetteWash = cfg.Bind(V, "Wash", 0.32f,
+                new ConfigDescription("How much of the veil covers the middle of your view rather than just " +
+                                      "the edges. This is the part that takes the colour out. 0 = edges only. " +
+                                      "Changing it takes effect next time the game starts.",
+                    new AcceptableValueRange<float>(0f, 0.7f)));
+            VignetteRedSeconds = cfg.Bind(V, "RedSeconds", 0.3f,
+                new ConfigDescription("How long the red flash holds before it turns grey.",
+                    new AcceptableValueRange<float>(0f, 2f)));
+            VignetteRecoverSeconds = cfg.Bind(V, "RecoverSeconds", 2.5f,
+                new ConfigDescription("Seconds for the colour to come back once you are up.",
+                    new AcceptableValueRange<float>(0.2f, 10f)));
         }
     }
 }

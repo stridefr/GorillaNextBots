@@ -59,6 +59,12 @@ namespace NextBots.UI
             public Transform Row;
             public float Width, Height, Y;
             public bool Placed;
+
+            /// <summary>Where the monitor copy of this row is drawn, in pixels down from the
+            /// corner. Smoothed towards where it belongs, exactly as the headset rows are, so a
+            /// new catch pushes the list along instead of teleporting it.</summary>
+            public float MonY;
+            public bool MonPlaced;
             public readonly List<TextMeshPro> Texts = new List<TextMeshPro>(8);
             public readonly List<Color> TextColors = new List<Color>(8);
             public readonly List<Material> Mats = new List<Material>(4);
@@ -498,6 +504,7 @@ namespace NextBots.UI
 
         private GUIStyle _label;
         private int _labelSize = -1;
+        private int _monitorFrame = -1;
 
         private void OnGUI()
         {
@@ -529,6 +536,13 @@ namespace NextBots.UI
             float offset = 0f;
             var saved = GUI.color;
 
+            // IMGUI can repaint more than once in a frame, and moving the rows on every repaint
+            // would run the slide at a speed that depends on how many repaints there were. So the
+            // positions advance once per frame, and any further repaint draws them where they are.
+            bool step = Time.frameCount != _monitorFrame;
+            _monitorFrame = Time.frameCount;
+            float k = 1f - Mathf.Exp(-12f * Time.deltaTime);
+
             foreach (var e in _entries)
             {
                 float age = Time.time - e.Born;
@@ -548,8 +562,13 @@ namespace NextBots.UI
                 float h = Mathf.Max(th, iconH) + 2f * pad;
                 float slide = anim == "slide" ? (1f - arrive) * (w + margin) : 0f;
 
+                // Older rows glide to their new place; a row being drawn for the first time
+                // starts where it belongs rather than sliding in from the top of the list.
+                if (!e.MonPlaced) { e.MonY = offset; e.MonPlaced = true; }
+                else if (step) e.MonY = Mathf.Lerp(e.MonY, offset, k);
+
                 float x = _style.Right ? Screen.width - margin - w + slide : margin - slide;
-                float y = _style.Top ? marginY + offset : Screen.height - marginY - offset - h;
+                float y = _style.Top ? marginY + e.MonY : Screen.height - marginY - e.MonY - h;
                 offset += h + spacing;
 
                 Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;

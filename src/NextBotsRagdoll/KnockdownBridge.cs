@@ -341,6 +341,7 @@ namespace NextBotsRagdoll
 
             // Before anything else: the face, while the hit is still the thing you are reacting to.
             if (Jumpscare.Instance != null) Jumpscare.Instance.Play(hit.Skin, hit.By);
+            if (DeathVignette.Instance != null) DeathVignette.Instance.Begin();
 
             Vector3 dir;
             var launch = Launch(hit, torso, profile, out dir);
@@ -468,6 +469,7 @@ namespace NextBotsRagdoll
             _downUntil = 0f;
             _graceUntil = Time.time + BridgeConfig.GetUpGrace.Value;
             if (KillCam.Instance != null) KillCam.Instance.End();
+            if (DeathVignette.Instance != null) DeathVignette.Instance.Release();
 
             if (_respawnAfter)
             {

@@ -1,8 +1,9 @@
 # GorillaNextBots
 
 **Garry's Mod-style nextbots and ragdolls for Gorilla Tag.** Spawn nextbots that hunt your
-friends across the map. When one catches you, your gorilla goes limp, gets thrown the way the bot
-hit you, and a kill cam replays it.
+friends across the map. When one catches you, its face fills your view, your gorilla goes limp and
+gets thrown the way the bot hit you, and the colour drains out of the world until you are back
+on your feet.
 
 By **stridefr**.
 
@@ -19,7 +20,7 @@ Three BepInEx plugins. Install all three for the full experience, or just the on
 |---|---|
 | **NextBots** | Spawn nextbots from a panel on your wrist. They find their way to you, cut you off, jump gaps, climb ledges, and sneak up while your back is turned. Any PNG or GIF becomes a bot, and a WAV with the same name becomes its chase sound. A Garry's Mod-style death log shows who got caught by what, in your headset and on the monitor. |
 | **GorillaRagdoll** | Full-body ragdoll for your gorilla. Go limp at the press of a button, tumble with real physics, and get up where you land. You can watch in first or third person in the headset, and there's a separate camera for the monitor. Other players with the mod see your ragdoll too. |
-| **NextBotsRagdoll** | Connects the two. A nextbot catching you knocks you down and throws you in the direction it hit you, with a kill cam, per-bot weights and Garry's Mod impact and death sounds that the whole lobby hears. Needs both of the others. |
+| **NextBotsRagdoll** | Connects the two. A nextbot catching you knocks you down and throws you in the direction it hit you, with a jumpscare, a death vignette, per-bot weights and Garry's Mod impact and death sounds that the whole lobby hears. There is a kill cam too, switched off by default. Needs both of the others. |
 
 ## Install
 
@@ -94,11 +95,14 @@ When a bot gets within about a metre of you:
 - **You ragdoll**, and your body is thrown in the direction the bot was running. A faster bot
   throws you harder, a sprinting ambush hardest of all, and heavy bots hit harder still.
 - **The bot's face fills your view** for a third of a second - its own image, animated if it is a
-  GIF - then fades as the kill cam takes over. Turn it off, shorten it or fade it back under
-  `[7. Jumpscare]` in `com.stridefr.nextbotsragdoll.cfg` if you would rather not have it.
-- **A kill cam** films your body flying, then swings round to the bot that got you. It appears on
-  a floating screen in VR and in the corner of the monitor. A little film camera flying around
-  your body shows where the shot is being taken from.
+  GIF - then fades. Turn it off, shorten it or fade it back under `[7. Jumpscare]` in
+  `com.stridefr.nextbotsragdoll.cfg` if you would rather not have it.
+- **The edges of your view flash red** and the colour drains out of everything while you are down,
+  coming back over a couple of seconds once you are up. `[8. Death vignette]` has the strength,
+  how long the red holds and how slowly the colour returns.
+- **A kill cam** can film your body flying and then swing round to the bot that got you, on a
+  floating screen in VR and in the corner of the monitor. It is **off by default** - it draws the
+  whole scene a second time - so switch `Enabled` on under `[4. Kill cam]` if you want it.
 - **The bot moves on** to someone else and leaves you alone for a couple of seconds after you get
   up, so you can't be caught again the moment you stand.
 - With **DEATH ON CATCH** switched on in the wrist panel, you respawn after the knockdown instead
@@ -176,8 +180,8 @@ Other players only hear your ragdoll if they have sounds in their own folders to
   wrist panel.
 - **In the third-person VR camera, players without the mod see you floating** where your camera
   is, because in VR your camera and your networked body are the same thing.
-- **The kill cam draws the scene a second time** while you're down. If your frame rate drops, lower
-  `Resolution` in the kill cam settings or turn the kill cam off.
+- **The kill cam draws the scene a second time** while you're down, which is why it ships switched
+  off. If you turn it on and your frame rate drops, lower `Resolution` in its settings.
 
 ## Something went wrong?
 
