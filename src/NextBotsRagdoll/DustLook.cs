@@ -44,7 +44,8 @@ namespace NextBotsRagdoll
         public float core = 1f;
 
         // ---- on the ground
-        public float grit = 0f;
+        public float grit = 60f;
+        public float gritSize = 1f;
         public float gritBounce = 0.4f;
         public float flash = 1f;
         public float scuff = 0.66f;
@@ -84,6 +85,7 @@ namespace NextBotsRagdoll
             ambient = Mathf.Clamp01(ambient);
             core = Mathf.Clamp01(core);
             grit = Mathf.Clamp(grit, 0f, 300f);
+            gritSize = Mathf.Clamp(gritSize, 0.3f, 4f);
             gritBounce = Mathf.Clamp(gritBounce, 0f, 0.9f);
             flash = Mathf.Clamp01(flash);
             scuff = Mathf.Clamp01(scuff);

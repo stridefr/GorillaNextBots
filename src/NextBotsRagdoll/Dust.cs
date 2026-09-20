@@ -65,8 +65,14 @@ namespace NextBotsRagdoll
         {
             public Vector3 Pos, Vel;
             public float Age, Life, GroundY;
+            public float Size, Rot, Spin, Tint;
+            public int Shape;
+            public float RestFor;
             public bool Rest;
         }
+
+        /// <summary>How many different chunk outlines the atlas holds (a 2 x 2 grid).</summary>
+        private const int Shapes = 4;
 
         private readonly List<Grain> _grit = new List<Grain>(MaxGrit);
         private ParticleSystem _gritSystem;
@@ -87,7 +93,7 @@ namespace NextBotsRagdoll
         private readonly Scuff[] _scuffs = new Scuff[MaxScuffs];
         private int _nextScuff;
 
-        private Texture2D _puffTex, _dotTex, _scuffTex;
+        private Texture2D _puffTex, _chunkTex, _dotTex, _scuffTex;
         private Material _smokeMat, _gritMat;
         private bool _built;
         private float _lastPuff = -99f;
@@ -97,7 +103,7 @@ namespace NextBotsRagdoll
         private void OnDestroy()
         {
             if (Instance == this) Instance = null;
-            foreach (var t in new UnityEngine.Object[] { _puffTex, _dotTex, _scuffTex, _smokeMat, _gritMat })
+            foreach (var t in new UnityEngine.Object[] { _puffTex, _chunkTex, _dotTex, _scuffTex, _smokeMat, _gritMat })
                 if (t != null) Destroy(t);
             foreach (var s in _scuffs)
                 if (s != null && s.Mat != null) Destroy(s.Mat);
@@ -223,21 +229,40 @@ namespace NextBotsRagdoll
                 });
             }
 
-            // Grit: sand and chips of the floor, thrown out ahead and bouncing. The cloud says
-            // something landed; the grit says it was heavy.
+            // Debris: chips of the floor kicked up by the hit. The cloud says something landed; the
+            // debris says it was heavy - if it looks like debris. What reads as debris and what
+            // reads as snow is nearly all in four things: chunky angular pieces rather than soft
+            // dots, sizes that are mostly small with a few big ones, a tumble, and coming down and
+            // settling on the floor instead of floating off.
             int grains = Mathf.RoundToInt(look.grit * power);
             int room = MaxGrit - _grit.Count;
             if (room < grains) _grit.RemoveRange(0, Mathf.Min(_grit.Count, grains - room));
             for (int i = 0; i < grains && _grit.Count < MaxGrit; i++)
             {
                 float a = UnityEngine.Random.value * Mathf.PI * 2f;
-                float sp = look.speed * scale * (0.45f + UnityEngine.Random.value * 0.9f);
+
+                // Mostly kicked out a short way, a few a long way: the spread of a real hit, and
+                // it keeps the debris inside the dust rather than fired out past it in a ring.
+                float far = UnityEngine.Random.value;
+                far *= far;
+                float horizontal = (1.6f + far * look.speed * 0.6f) * scale;
+                float up = (1.8f + UnityEngine.Random.value * (2.2f + look.speed * 0.2f)) * scale;
+
+                // Small pieces far more often than big ones.
+                float sz = UnityEngine.Random.value;
+                sz = sz * sz * sz;
+
                 _grit.Add(new Grain
                 {
-                    Pos = ground + new Vector3(Mathf.Cos(a) * 0.2f, 0.06f + UnityEngine.Random.value * 0.1f, Mathf.Sin(a) * 0.2f),
-                    Vel = new Vector3(Mathf.Cos(a) * sp, 1.2f + UnityEngine.Random.value * (2f + look.speed * 0.25f) * scale, Mathf.Sin(a) * sp),
-                    Life = 1f + UnityEngine.Random.value * 2.2f,
+                    Pos = ground + new Vector3(Mathf.Cos(a) * 0.25f, 0.06f + UnityEngine.Random.value * 0.12f, Mathf.Sin(a) * 0.25f),
+                    Vel = new Vector3(Mathf.Cos(a) * horizontal, up, Mathf.Sin(a) * horizontal),
+                    Life = 1.8f + UnityEngine.Random.value * 1.8f,
                     GroundY = ground.y,
+                    Size = Mathf.Lerp(0.035f, 0.13f, sz) * look.gritSize,
+                    Rot = UnityEngine.Random.value * 360f,
+                    Spin = (UnityEngine.Random.value < 0.5f ? -1f : 1f) * (120f + UnityEngine.Random.value * 520f),
+                    Tint = 0.7f + UnityEngine.Random.value * 0.55f,
+                    Shape = UnityEngine.Random.Range(0, Shapes),
                 });
             }
 
@@ -339,18 +364,32 @@ namespace NextBotsRagdoll
                 if (!g.Rest)
                 {
                     g.Vel.y -= 14f * dt;
+                    // A little air resistance, so a chip slows and drops rather than sailing.
+                    float air = Mathf.Exp(-0.5f * dt);
+                    g.Vel.x *= air; g.Vel.z *= air;
                     g.Pos += g.Vel * dt;
-                    if (g.Pos.y <= g.GroundY + 0.02f)
+                    g.Rot += g.Spin * dt;
+
+                    float rest = g.GroundY + g.Size * 0.5f;
+                    if (g.Pos.y <= rest)
                     {
-                        g.Pos.y = g.GroundY + 0.02f;
-                        if (Mathf.Abs(g.Vel.y) < 0.7f) { g.Rest = true; g.Vel = Vector3.zero; }
+                        g.Pos.y = rest;
+                        if (Mathf.Abs(g.Vel.y) < 0.8f)
+                        {
+                            g.Rest = true;
+                            g.Vel = Vector3.zero;
+                        }
                         else
                         {
+                            // Skips and slides. The tumble slows with every hit, the way a real
+                            // chip's does, until it settles.
                             g.Vel.y = -g.Vel.y * bounce;
-                            g.Vel.x *= 0.65f; g.Vel.z *= 0.65f;
+                            g.Vel.x *= 0.6f; g.Vel.z *= 0.6f;
+                            g.Spin *= 0.55f;
                         }
                     }
                 }
+                else g.RestFor += dt;
                 _grit[i] = g;
             }
         }
@@ -476,22 +515,32 @@ namespace NextBotsRagdoll
             }
             _gritEmpty = false;
 
-            Color baseCol = _look.Bounce;
-            baseCol = Color.Lerp(baseCol, Color.black, 0.2f);
+            // The floor's own colour, darkened: chips are the ground, not the dust.
+            Color baseCol = Color.Lerp(_look.Bounce, _look.Shadow, 0.45f);
 
             for (int i = 0; i < n; i++)
             {
                 var g = _grit[i];
-                float fade = Mathf.Clamp01((g.Life - g.Age) / 0.4f);
-                var col = baseCol;
-                col.a = fade;
+
+                // Shrinks away at the end instead of fading: a solid thing does not go transparent.
+                float left = g.Life - g.Age;
+                float shrink = Mathf.SmoothStep(0f, 1f, left / 0.45f);
+                float s = g.Size * shrink;
+
+                var col = baseCol * g.Tint;
+                col.a = 1f;
 
                 var part = new ParticleSystem.Particle();
                 part.position = g.Pos;
-                part.startLifetime = 1f;
-                part.remainingLifetime = 1f;
+                part.velocity = Vector3.zero;
+                // The frame of the atlas is picked through the particle's age: the sheet runs once
+                // over a particle's life, so putting it a quarter of the way through shows the
+                // second outline. The life is long so the system's own ageing cannot move it.
+                part.startLifetime = 100f;
+                part.remainingLifetime = 100f * (1f - (g.Shape + 0.5f) / Shapes);
                 part.startColor = col;
-                part.startSize3D = new Vector3(0.045f, 0.045f, 1f);
+                part.startSize3D = new Vector3(s, s, 1f);
+                part.rotation = g.Rot;
                 _gritBuf[i] = part;
             }
             _gritSystem.SetParticles(_gritBuf, n);
@@ -514,14 +563,25 @@ namespace NextBotsRagdoll
                 }
 
                 _puffTex = BuildPuffTexture(128);
+                _chunkTex = BuildChunkTexture(64);
                 _dotTex = BuildRadial(32, 0.25f, 0.95f, false);
                 _scuffTex = BuildRadial(128, 0.05f, 0.95f, true);
 
                 _smokeMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, mainTexture = _puffTex };
-                _gritMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, mainTexture = _dotTex };
+                _gritMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, mainTexture = _chunkTex };
 
                 _smokeSystem = BuildSystem("Dust.Smoke", _smokeMat, MaxPuffs);
                 _gritSystem = BuildSystem("Dust.Grit", _gritMat, MaxGrit);
+
+                // The atlas: 2 x 2 chunk outlines, one shown per particle.
+                var sheet = _gritSystem.textureSheetAnimation;
+                sheet.enabled = true;
+                sheet.mode = ParticleSystemAnimationMode.Grid;
+                sheet.numTilesX = 2;
+                sheet.numTilesY = 2;
+                sheet.animation = ParticleSystemAnimationType.WholeSheet;
+                sheet.cycleCount = 1;
+                sheet.frameOverTime = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0f, 1f, 1f));
 
                 for (int i = 0; i < MaxScuffs; i++)
                 {
@@ -645,6 +705,88 @@ namespace NextBotsRagdoll
                     pix[y * size + x] = new Color32(g, g, g, (byte)Mathf.Clamp(a * 255f, 0f, 255f));
                 }
             }
+            tex.SetPixels32(pix);
+            tex.Apply(false, true);
+            return tex;
+        }
+
+        /// <summary>
+        /// Four chips of stone in a 2 x 2 atlas. Each is an irregular convex polygon with hard,
+        /// slightly anti-aliased edges - hard edges are what say "solid" - split into a lit face
+        /// and a shaded face, with a darker rim so it has thickness. Left grey; the floor's colour
+        /// is multiplied on top.
+        /// </summary>
+        private static Texture2D BuildChunkTexture(int cell)
+        {
+            int size = cell * 2;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "NextBotsRagdoll.Chunks", wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear, hideFlags = HideFlags.HideAndDontSave
+            };
+            var pix = new Color32[size * size];
+            var rng = new System.Random(7);
+
+            for (int shape = 0; shape < Shapes; shape++)
+            {
+                int ox = (shape % 2) * cell, oy = (shape / 2) * cell;
+
+                // An irregular convex outline: points round a circle at uneven radii.
+                int corners = 5 + rng.Next(0, 3);
+                var vx = new float[corners];
+                var vy = new float[corners];
+                float rot0 = (float)rng.NextDouble() * Mathf.PI * 2f;
+                for (int k = 0; k < corners; k++)
+                {
+                    float a = rot0 + (k + (float)(rng.NextDouble() - 0.5) * 0.5f) / corners * Mathf.PI * 2f;
+                    float r = cell * (0.28f + (float)rng.NextDouble() * 0.16f);
+                    vx[k] = cell * 0.5f + Mathf.Cos(a) * r;
+                    vy[k] = cell * 0.5f + Mathf.Sin(a) * r;
+                }
+
+                // The line splitting the lit face from the shaded one.
+                float sa = (float)rng.NextDouble() * Mathf.PI * 2f;
+                Vector2 split = new Vector2(Mathf.Cos(sa), Mathf.Sin(sa));
+
+                for (int y = 0; y < cell; y++)
+                {
+                    for (int x = 0; x < cell; x++)
+                    {
+                        float px = x + 0.5f, py = y + 0.5f;
+
+                        // Signed distance to the edge: positive inside.
+                        float d = float.MaxValue;
+                        bool inside = true;
+                        for (int k = 0; k < corners; k++)
+                        {
+                            int j = (k + 1) % corners;
+                            float ex = vx[j] - vx[k], ey = vy[j] - vy[k];
+                            float len2 = Mathf.Max(ex * ex + ey * ey, 1e-6f);
+
+                            // Which side of this edge: all edges agreeing means inside.
+                            float cross = (px - vx[k]) * ey - (py - vy[k]) * ex;
+                            if (cross > 0f) inside = false;
+
+                            // How far from the edge itself. The segment, not the infinite line it
+                            // lies on: the line runs out past the corners and would draw hairlines.
+                            float t = Mathf.Clamp01(((px - vx[k]) * ex + (py - vy[k]) * ey) / len2);
+                            float cx = vx[k] + ex * t - px, cy = vy[k] + ey * t - py;
+                            d = Mathf.Min(d, Mathf.Sqrt(cx * cx + cy * cy));
+                        }
+                        float signed = inside ? d : -d;
+                        float alpha = Mathf.Clamp01(signed + 0.5f);
+
+                        float side = Vector2.Dot(new Vector2(px - cell * 0.5f, py - cell * 0.5f), split);
+                        float face = side > 0f ? 1f : 0.62f;
+                        float rim = Mathf.Lerp(0.72f, 1f, Mathf.Clamp01(signed / (cell * 0.09f)));
+                        float speck = 0.9f + 0.2f * Hash(x + shape * 97, y);
+
+                        byte g = (byte)Mathf.Clamp(255f * face * rim * speck, 0f, 255f);
+                        pix[(oy + y) * size + ox + x] = new Color32(g, g, g, (byte)(alpha * 255f));
+                    }
+                }
+            }
+
             tex.SetPixels32(pix);
             tex.Apply(false, true);
             return tex;

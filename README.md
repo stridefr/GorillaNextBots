@@ -103,6 +103,8 @@ When a bot gets within about a metre of you:
   how long the red holds and how slowly the colour returns.
 - **Dust.** A body landing throws up a ring of dust that runs out along the floor, grit that bounces,
   a crack of fine dust at the moment of impact, and a scuff mark that fades over ten seconds or so.
+  The grit is chunky angular chips of the floor that tumble, land, skid and settle, then shrink away;
+  `grit` in `dust.json` is how many, `gritSize` how big, and 0 turns them off.
   Landing hard on your feet does it too - dropping off a roof - not just being knocked down.
   Everyone in the lobby sees it, including other players' landings. The look is in
   `BepInEx/plugins/NextBotsRagdoll/dust.json`; the numbers under `[9. Landing dust]` in the config

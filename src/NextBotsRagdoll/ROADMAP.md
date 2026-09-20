@@ -244,7 +244,13 @@ close beneath, no dust, which is what keeps a wall hit or a mid-air bot hit from
   cloud (lit side, dark middle and underside, sky above, floor bounce below), and a lit top and
   shaded underside painted into the puff texture.
 - A ring of fast puffs as the leading edge, a slower layer left behind it, a column up the middle,
-  curl and wind, a crack of fine dust, 184 grit that bounce, a scuff mark that fades over 12 s.
+  curl and wind, a crack of fine dust, a scuff mark that fades over 12 s.
+- **Debris, not grit.** The first version threw 184 tiny soft dots, which read as snow. What reads
+  as debris is chunky angular pieces (four hard-edged chip outlines in a 2 x 2 atlas, each with a
+  lit face and a shaded one), mostly small with a few big, tumbling, arcing and coming down,
+  skidding and settling on the floor, and shrinking away rather than fading - a solid does not go
+  transparent. Most are kicked a short way and a few a long way, so they stay inside the dust
+  instead of being fired out past it. The atlas frame is chosen per particle through its age.
 - Fixed budgets: 420 puffs, 260 grains, 6 scuffs. `Amount` is the knob for VR frame rate, since
   the cost is overdraw.
 - **The look is `dust.json`**, the file the local design page (`tools/dust-demo`) writes. The mod
