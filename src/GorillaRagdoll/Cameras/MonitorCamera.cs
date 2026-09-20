@@ -186,12 +186,11 @@ namespace GorillaRagdoll.Cameras
         ///
         /// <para><b>Where it looks is yours</b> (<c>OrbitAim = Free</c>, the default). Where the
         /// camera <i>sits</i> and where it <i>looks</i> are two separate things: it stays
-        /// tethered to the body as before, but the mouse aims it, the way your head aims the
-        /// headset. Circling the body moved to A/D (and W/S for height), and that turns the view
-        /// by the same amount - the same as the VR stick orbit - so orbiting keeps the body where
-        /// it was on screen. C re-aims at the body. The old behaviour, where the aim was welded
-        /// to the body and the mouse could only swing the camera round it, is
-        /// <c>OrbitAim = LockOnBody</c>.</para>
+        /// tethered to the body, and holding right mouse swings it around the body, carrying the
+        /// view along so the body stays where it was on screen - the same thing A/D and W/S do,
+        /// on the mouse. C re-aims at the body if the aim has drifted. Set
+        /// <c>OrbitDrag = FreeLook</c> to have the drag turn the camera on the spot instead, and
+        /// <c>OrbitAim = LockOnBody</c> for the old orbit welded to the body.</para>
         /// </summary>
         private void Orbit(Transform head, bool menuOpen)
         {
@@ -228,7 +227,8 @@ namespace GorillaRagdoll.Cameras
             {
                 if (free)
                 {
-                    MouseLook(ref _lookYaw, ref _lookPitch);
+                    if (RagdollConfig.MonitorOrbitDrag.Value == OrbitDrag.OrbitBody) MouseOrbit();
+                    else MouseLook(ref _lookYaw, ref _lookPitch);
                     OrbitKeys();
                     if (SafeInput.KeyDown(KeyCode.C) || SafeInput.Mouse(2)) AimAt(target);
                 }
@@ -377,6 +377,35 @@ namespace GorillaRagdoll.Cameras
             float dy = SafeInput.Axis("Mouse Y") * s;
             pitch += RagdollConfig.InvertY.Value ? dy : -dy;
             pitch = Mathf.Clamp(pitch, -89f, 89f);
+        }
+
+        /// <summary>
+        /// Right mouse dragged: the camera circles your body and rises or falls, and the view
+        /// turns by the same amount so the body stays where it was on screen. Raising the camera
+        /// tips the aim down by as much as the tether actually moved - clamped at the top and
+        /// bottom of the arc, so dragging past the end does not quietly bend the aim away.
+        /// </summary>
+        private void MouseOrbit()
+        {
+            if (!SafeInput.Mouse(1)) return;
+
+            float s = RagdollConfig.FreeCamSensitivity.Value;
+            float dx = SafeInput.Axis("Mouse X") * s;
+            float dy = SafeInput.Axis("Mouse Y") * s;
+            if (RagdollConfig.InvertY.Value) dy = -dy;
+
+            if (dx != 0f)
+            {
+                _yaw += dx;
+                _lookYaw += dx;
+            }
+
+            if (dy != 0f)
+            {
+                float was = _pitch;
+                _pitch = Mathf.Clamp(_pitch + dy, -10f, 80f);
+                _lookPitch += _pitch - was;
+            }
         }
 
         /// <summary>A/D circle the body and W/S raise or lower the camera, for the Free orbit.

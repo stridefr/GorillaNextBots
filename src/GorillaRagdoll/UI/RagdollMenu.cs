@@ -288,9 +288,14 @@ namespace GorillaRagdoll.UI
                 EnumRow("Orbit aim", RagdollConfig.MonitorOrbitAim);
                 if (RagdollConfig.MonitorOrbitAim.Value == OrbitAim.Free)
                 {
-                    GUILayout.Label("Hold RIGHT MOUSE to look anywhere. A/D circle the body, W/S " +
-                                    "raise/lower, scroll zooms, C (or middle mouse) looks back at " +
-                                    "the body. It pulls in when scenery blocks it.", Wrapped());
+                    EnumRow("Right mouse", RagdollConfig.MonitorOrbitDrag);
+                    GUILayout.Label(RagdollConfig.MonitorOrbitDrag.Value == OrbitDrag.OrbitBody
+                        ? "Hold RIGHT MOUSE and drag to circle your body and raise or lower the " +
+                          "camera. A/D and W/S do the same, scroll zooms, C looks back at the body. " +
+                          "It pulls in when scenery blocks it."
+                        : "Hold RIGHT MOUSE to look anywhere without moving the camera. A/D circle " +
+                          "the body, W/S raise/lower, scroll zooms, C (or middle mouse) looks back " +
+                          "at the body.", Wrapped());
                     Slider(RagdollConfig.MonitorOrbitKeySpeed, "Circle speed (A/D, W/S)", "0");
                 }
                 else

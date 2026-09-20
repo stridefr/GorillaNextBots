@@ -32,8 +32,8 @@ Pass `-p:NoDeploy=true` to skip. Game path is set once in `GorillaRagdoll.csproj
 | **F10** | Panic — unconditional restore |
 | **F11** | Dump the avatar's bone hierarchy to the log |
 | Left controller **X** | Go ragdoll / get up, in VR (hold ~0.3s) |
-| Hold **right mouse** | Look around (`ThirdPersonFree`, `OrbitAim = Free`); swing around the body with `OrbitAim = LockOnBody` |
-| **A / D**, **W / S** | Circle the body / raise and lower the camera (`ThirdPersonFree`, `OrbitAim = Free`) |
+| Hold **right mouse**, drag | Circle the body and raise or lower the camera, the view coming with it (`ThirdPersonFree`). `OrbitDrag = FreeLook` turns the camera on the spot instead |
+| **A / D**, **W / S** | The same, from the keyboard (`ThirdPersonFree`, `OrbitAim = Free`) |
 | **C** or middle mouse | Look back at the body |
 | Scroll | Zoom in / out |
 | WASD + QE | Fly the camera (in `ThirdPersonFly` mode only) |
@@ -318,7 +318,7 @@ renderer data across. Build a camera from scratch under URP instead and you get 
 |---|---|---|
 | `FirstPersonUnlocked` *(VR default)* | Eye rides the ragdoll's head, you still aim | Same, mouse-look |
 | `FirstPersonLocked` | Also rides the head's rotation — comfort-clamped | Rides it fully |
-| `ThirdPersonFree` *(monitor default)* | Orbits the ragdoll on the sticks; your head's look is never touched | Tethered to the body; the mouse aims it (`OrbitAim = Free`) or it stays aimed at the body (`LockOnBody`) |
+| `ThirdPersonFree` *(monitor default)* | Orbits the ragdoll on the sticks; your head's look is never touched | Tethered to the body; right mouse swings it round (`OrbitAim = Free`, `OrbitDrag = OrbitBody`), or it stays welded to the body (`LockOnBody`) |
 | `ThirdPersonFly` | Same as above | WASD free cam |
 | `Off` | Headset untouched | No mod camera |
 

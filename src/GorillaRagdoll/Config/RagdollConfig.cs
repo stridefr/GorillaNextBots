@@ -61,6 +61,18 @@ namespace GorillaRagdoll.Config
         LockOnBody
     }
 
+    /// <summary>What holding right mouse does in the Free orbit.</summary>
+    public enum OrbitDrag
+    {
+        /// <summary>Swings the camera around your body, carrying the view with it, so the body
+        /// stays where it was on screen. The same thing A/D and W/S do, on the mouse.</summary>
+        OrbitBody,
+
+        /// <summary>Turns the camera on the spot, like looking around with your head. The camera
+        /// stays where it is and only the aim moves.</summary>
+        FreeLook
+    }
+
     /// <summary>How the right stick swings the VR orbit camera round the body.</summary>
     public enum OrbitTurning
     {
@@ -151,6 +163,7 @@ namespace GorillaRagdoll.Config
         public static ConfigEntry<float> OccluderAlpha;
         public static ConfigEntry<float> CameraDepthOffset;
         public static ConfigEntry<OrbitAim> MonitorOrbitAim;
+        public static ConfigEntry<OrbitDrag> MonitorOrbitDrag;
         public static ConfigEntry<float> MonitorOrbitKeySpeed;
 
         // ---- camera (VR orbit)
@@ -333,9 +346,13 @@ namespace GorillaRagdoll.Config
                 new ConfigDescription("Render depth above the source camera. Lower it if it fights QuickFreeCam.",
                     new AcceptableValueRange<float>(1f, 200f)));
             MonitorOrbitAim = cfg.Bind(M, "OrbitAim", OrbitAim.Free,
-                "ThirdPersonFree on the monitor. Free: hold right mouse to look wherever you like, " +
-                "A/D circle the body, W/S raise/lower, C faces the body again. LockOnBody: the old " +
-                "orbit, always aimed at the body, right mouse swings around it.");
+                "ThirdPersonFree on the monitor. Free: the camera is tethered to your body and you " +
+                "aim it yourself - A/D circle the body, W/S raise/lower, C faces the body again. " +
+                "LockOnBody: the old orbit, welded to the body, right mouse swings around it.");
+            MonitorOrbitDrag = cfg.Bind(M, "OrbitDrag", OrbitDrag.OrbitBody,
+                "What holding right mouse does in the Free orbit. OrbitBody: drag to swing the camera " +
+                "around your body, the view coming with it, so the body stays put on screen. FreeLook: " +
+                "turn the camera on the spot without moving it.");
             MonitorOrbitKeySpeed = cfg.Bind(M, "OrbitKeySpeed", 90f,
                 new ConfigDescription("Degrees per second A/D and W/S move the Free orbit camera round the body.",
                     new AcceptableValueRange<float>(10f, 360f)));

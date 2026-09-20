@@ -80,8 +80,8 @@ everyone else sees the host's bots.
 | **Knockdowns** | **F5** | Pretend the nearest bot just caught you, to try it out. The rest of the lobby sees it in their death log too |
 | **VR camera** | Right stick | Circle around your ragdoll and move the camera up or down (third-person view) |
 | | Left stick | Move the camera closer or further away |
-| **Monitor camera** | Hold right mouse | Look around |
-| | A / D, W / S | Circle the body, raise or lower the camera |
+| **Monitor camera** | Hold right mouse, drag | Circle the body, raise or lower the camera |
+| | A / D, W / S | The same, from the keyboard |
 | | Scroll | Zoom |
 | | C | Look back at your body |
 
