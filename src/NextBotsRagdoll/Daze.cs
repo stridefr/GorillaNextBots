@@ -76,6 +76,11 @@ namespace NextBotsRagdoll
             _muffle = Mathf.Max(_muffle, power);
             _ring = Mathf.Max(_ring, power);
             _sinceHit = 0f;
+
+            Plugin.Log.LogInfo("[Daze] hit " + power.ToString("0.00") + " | muffle " +
+                               BridgeConfig.DazeMuffle.Value.ToString("0.00") + " ring " +
+                               BridgeConfig.DazeRingVolume.Value.ToString("0.00") + " for ~" +
+                               BridgeConfig.DazeSeconds.Value.ToString("0.0") + "s");
         }
 
         // ================================================================== every frame
@@ -117,6 +122,8 @@ namespace NextBotsRagdoll
                 if (_filter == null) _filter = listener.gameObject.AddComponent<AudioLowPassFilter>();
                 else { _filterWasEnabled = _filter.enabled; _filterOldCutoff = _filter.cutoffFrequency; }
                 _filter.lowpassResonanceQ = 1f;
+                Plugin.Log.LogInfo("[Daze] low-pass on the audio listener '" + listener.name + "'" +
+                                   (_weAddedFilter ? "" : " (it already had one)"));
             }
 
             // Cutoff runs on a log scale, because that is how hearing works: halving the frequency is

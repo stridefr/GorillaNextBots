@@ -217,7 +217,7 @@ namespace NextBotsRagdoll
             DazeOnHardImpacts = cfg.Bind(Z, "OnHardImpacts", true,
                 "Also for very hard landings and slamming into things as a ragdoll, not only being caught. " +
                 "Only the very hardest count.");
-            DazeRingVolume = cfg.Bind(Z, "RingVolume", 0.3f,
+            DazeRingVolume = cfg.Bind(Z, "RingVolume", 0.45f,
                 new ConfigDescription("How loud the whine is at its worst. Quiet by default and hard-capped; " +
                                       "0 turns the whine off and keeps the muffling.",
                     new AcceptableValueRange<float>(0f, 1f)));

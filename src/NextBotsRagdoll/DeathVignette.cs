@@ -48,6 +48,7 @@ namespace NextBotsRagdoll
 
         private float _started = -1f;
         private float _released = -1f;
+        private bool _loggedView;
 
         private void Awake() => Instance = this;
 
@@ -81,7 +82,15 @@ namespace NextBotsRagdoll
 
             _started = Time.unscaledTime;
             _released = -1f;
+            _loggedView = false;
             _root.gameObject.SetActive(true);
+
+            var eye = ViewCameras.Eye;
+            var mon = ViewCameras.Monitor;
+            Plugin.Log.LogInfo("[Vignette] on | strength " + BridgeConfig.VignetteStrength.Value.ToString("0.00") +
+                               " wash " + BridgeConfig.VignetteWash.Value.ToString("0.00") +
+                               " | eye camera " + (eye != null ? "'" + eye.name + "'" : "none") +
+                               " | monitor camera " + (mon != null ? "'" + mon.name + "'" : "none"));
         }
 
         /// <summary>On your feet again: the colour comes back over
@@ -251,6 +260,13 @@ namespace NextBotsRagdoll
             if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { _renderer.forceRenderingOff = true; return; }
             _renderer.forceRenderingOff = false;
             PlaceFor(cam);
+
+            // Said once per hit, so the log shows which camera actually drew it.
+            if (!_loggedView)
+            {
+                _loggedView = true;
+                Plugin.Log.LogInfo("[Vignette] drawing for camera '" + cam.name + "'");
+            }
         }
 
         private void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
