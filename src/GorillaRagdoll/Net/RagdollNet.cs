@@ -134,15 +134,48 @@ namespace GorillaRagdoll.Net
             {
                 Sending = true;
                 _sendAccum = float.MaxValue;   // first pose goes out this frame
+                float flush = FlushRate();
                 Plugin.Log.LogInfo("[Net] sharing ragdoll with the room at " +
-                                   RagdollConfig.NetSendRate.Value.ToString("0") + "Hz");
+                                   SendRate().ToString("0") + "Hz | Photon flushes " + flush.ToString("0") +
+                                   "/s" + (RagdollConfig.NetFlushSends.Value
+                                       ? ", each pose pushed out as it is sent"
+                                       : RagdollConfig.NetSendRate.Value > flush
+                                           ? ", so the asked-for " + RagdollConfig.NetSendRate.Value.ToString("0") +
+                                             "Hz was capped - turn on NetFlushSends for more"
+                                           : ""));
             }
 
+            float interval = 1f / Mathf.Max(1f, SendRate());
             _sendAccum += Time.unscaledDeltaTime;
-            if (_sendAccum < 1f / Mathf.Max(1f, RagdollConfig.NetSendRate.Value)) return;
-            _sendAccum = 0f;
+            if (_sendAccum < interval) return;
+
+            // Carry the remainder rather than zeroing: zeroing rounds every send up to the next
+            // frame, so the spacing wobbles by a frame each time and the receiver has to smooth
+            // out unevenness this end invented.
+            _sendAccum = Mathf.Min(_sendAccum - interval, interval);
 
             SendPose(pose);
+        }
+
+        /// <summary>
+        /// Photon does not send when <c>RaiseEvent</c> is called: it queues, and flushes on its
+        /// own timer. Asking for more poses a second than that timer allows does not get them
+        /// there sooner - it gets them there in pairs, which looks worse at the far end than
+        /// fewer, evenly spaced. So the rate is capped at the flush rate.
+        /// </summary>
+        private static float SendRate()
+        {
+            // With the immediate flush on, each pose leaves the moment it is queued and the
+            // flush timer holds nothing back, so the asked-for rate stands.
+            return RagdollConfig.NetFlushSends.Value
+                ? RagdollConfig.NetSendRate.Value
+                : Mathf.Min(RagdollConfig.NetSendRate.Value, FlushRate());
+        }
+
+        private static float FlushRate()
+        {
+            try { return Mathf.Max(1, PhotonNetwork.SendRate); }
+            catch { return 30f; }
         }
 
         private void SendPose(IPoseSource pose)
@@ -163,6 +196,14 @@ namespace GorillaRagdoll.Net
             // Unreliable on purpose: a dropped pose is superseded one send interval later, and
             // reliable delivery would stall behind a lost packet and then deliver a burst.
             Raise(EvPose, _buffer.ToArray(), Unreliable);
+
+            // And out of the queue now, so it is not held back to Photon's next flush and then
+            // delivered alongside the following one.
+            if (RagdollConfig.NetFlushSends.Value)
+            {
+                try { PhotonNetwork.SendAllOutgoingCommands(); }
+                catch { /* not fatal: the pose goes out on the next flush instead */ }
+            }
         }
 
         private void SendEnd()
@@ -325,18 +366,28 @@ namespace GorillaRagdoll.Net
         /// Poses every remote ragdoll. Called immediately before <c>GorillaIKMgr</c> reads its
         /// targets - see <see cref="IkHook"/> for why that exact moment.
         /// </summary>
+        private static int _appliedFrame = -1;
+        private static float _appliedAt;
+
         internal static void ApplyRemotes()
         {
             if (Remotes.Count == 0) return;
 
-            double now = PhotonNetwork.Time;
+            // Once per frame. The IK hook fires once, but if the patch ever failed and the
+            // LateUpdate fallback took over mid-session, both could run in the same frame and
+            // advance every playback clock twice.
+            if (_appliedFrame == Time.frameCount) return;
+            _appliedFrame = Time.frameCount;
+
+            float now = Time.unscaledTime;
+            float dt = _appliedAt > 0f ? Mathf.Clamp(now - _appliedAt, 0f, 0.25f) : Time.unscaledDeltaTime;
+            _appliedAt = now;
 
             foreach (var kv in Remotes)
             {
-                // Draw a little in the past so there is a snapshot on both sides to blend
-                // between. Two and a half of the sender's own intervals rides out one lost
-                // packet without a visible hitch.
-                try { kv.Value.Apply(now - 2.5 * kv.Value.Interval); }
+                // Each ragdoll runs its own playback clock, a measured distance behind the
+                // sender, and curves between the snapshots either side of it.
+                try { kv.Value.Apply(dt); }
                 catch (Exception ex)
                 {
                     // One broken remote must never take the IK down with it: this runs inside

@@ -526,12 +526,34 @@ owner switching sharing off.
 
 The owner's physics is authoritative and nothing is re-simulated remotely — two clients running
 the same ragdoll from slightly different starting poses land in different places within a
-second, and a video needs everyone to see the same fall. Receivers buffer the snapshots and draw
-**2.5 send intervals in the past** — the sender's interval, measured from the snapshot spacing,
-not the receiver's own setting — so there is almost always a snapshot either side to interpolate
-between and one lost packet does not show. Out of future, they hold the newest pose
-rather than extrapolate: a ragdoll guessed forward through a floor looks worse than one that
-waits a frame for a packet.
+second, and a video needs everyone to see the same fall. Receivers buffer the snapshots and
+replay them a little behind the sender. Four things make that replay smooth rather than choppy,
+and the first two matter more than the interpolation everyone reaches for first:
+
+**Playback runs on its own clock, not `PhotonNetwork.Time`.** That is a millisecond counter
+re-synced whenever a packet lands, so sampling it once a frame yields a time that stutters by a
+few milliseconds either way — and a stuttering clock is a stuttering ragdoll no matter how high
+the frame rate is. [RemoteRagdoll](Net/RemoteRagdoll.cs) advances its own clock by the frame's
+delta time and corrects it by changing *speed*, never by jumping: at most 15% fast or slow,
+which closes a tenth of a second inside a second and cannot be seen on a tumbling body.
+
+**Photon flushes on a timer, so sending faster than it does makes things worse.** `RaiseEvent`
+queues; `PhotonNetwork.SendRate` decides when the queue goes out. Asking for 20 poses a second
+against a 10 Hz flush does not deliver them sooner — it delivers them in pairs, which reads as a
+stutter at the far end. So the send rate is capped at the flush rate, each pose is pushed out as
+it is queued (`NetFlushSends`), and the sender carries its timing remainder instead of zeroing
+it, which otherwise rounds every send up to the next frame.
+
+**The buffer is measured, not assumed.** Snapshots are timed on arrival as well as by their own
+timestamps, so a sender whose packets do arrive in bursts is drawn further back automatically,
+and a steady one is drawn closer to live. `NetSmoothness` scales that.
+
+**Between snapshots it curves.** Straight lines between 50 ms samples of a tumbling body read as
+a series of small corners; a Catmull-Rom curve through four snapshots passes through the same
+points with a continuous direction, and squad does the same for the rotations. When the next
+packet is late the body carries on the way it was going, slowing to a stop over `NetExtrapolate`
+(120 ms by default) rather than freezing and then jumping — but no further, because a ragdoll
+guessed too far forward goes through the floor.
 
 The drawing is the ordinary [RigDriver](Runtime/RigDriver.cs), in a remote mode, fed from four
 hidden transforms standing in for the owner's puppet through [IPoseSource](Runtime/IPoseSource.cs).
@@ -574,8 +596,13 @@ fails to install, posing falls back to LateUpdate and the overlay says so.
 
 Each pose goes to every other player, so a full ten-player lobby all ragdolling at once is ten
 times fifteen times nine messages a second on top of the game's own traffic. That is why the
-default is 15 rather than higher: with interpolation it is smooth, and the slider goes to 30 for
-a small group that wants it smoother.
+default is 15 rather than higher: with the interpolation above it is smooth, and the slider goes
+to 30 for a small group that wants it smoother.
+
+Raising it past `PhotonNetwork.SendRate` buys nothing — the rate is capped there, and the log
+says so when it happens (`asked for 20, but Photon only flushes 10 times a second`). If it is
+capped and the result is still not smooth enough, the buffer is the knob to reach for, not the
+rate.
 
 ## Not built
 

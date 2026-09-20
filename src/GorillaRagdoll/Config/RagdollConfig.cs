@@ -178,6 +178,9 @@ namespace GorillaRagdoll.Config
         public static ConfigEntry<bool> ShareMyRagdoll;
         public static ConfigEntry<bool> ShowOtherRagdolls;
         public static ConfigEntry<float> NetSendRate;
+        public static ConfigEntry<float> NetSmoothness;
+        public static ConfigEntry<float> NetExtrapolate;
+        public static ConfigEntry<bool> NetFlushSends;
 
         // ---- debug
         public static ConfigEntry<bool> VerboseLog;
@@ -393,6 +396,21 @@ namespace GorillaRagdoll.Config
                                       "to every other player, so a full lobby all ragdolling at once " +
                                       "adds up fast; 15 is smooth with interpolation.",
                     new AcceptableValueRange<float>(5f, 30f)));
+            NetSmoothness = cfg.Bind(N, "NetSmoothness", 1f,
+                new ConfigDescription("How much buffer other people's ragdolls are drawn with. The buffer is " +
+                                      "measured from how evenly their packets actually arrive; this scales it. " +
+                                      "Higher is smoother but further behind what they are doing; lower is " +
+                                      "closer to live and more likely to stutter.",
+                    new AcceptableValueRange<float>(0.25f, 4f)));
+            NetExtrapolate = cfg.Bind(N, "NetExtrapolate", 120f,
+                new ConfigDescription("How long a ragdoll keeps moving the way it was when its next packet is " +
+                                      "late, milliseconds, before it stops and waits. 0 = freeze at once. Too " +
+                                      "high and a body guesses its way through the floor.",
+                    new AcceptableValueRange<float>(0f, 250f)));
+            NetFlushSends = cfg.Bind(N, "NetFlushSends", true,
+                "Push each pose out of Photon's queue as it is sent instead of waiting for the next flush. " +
+                "Photon flushes on a timer, so without this a faster send rate just makes packets arrive in " +
+                "pairs, which is what makes a ragdoll look choppy to everyone else.");
 
             const string D = "9. Debug";
             VerboseLog = cfg.Bind(D, "VerboseLog", false,

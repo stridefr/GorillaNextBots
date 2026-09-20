@@ -208,6 +208,9 @@ namespace GorillaRagdoll.UI
             Bool(RagdollConfig.ShareMyRagdoll, "Share my ragdoll with the room");
             Bool(RagdollConfig.ShowOtherRagdolls, "Show other players' ragdolls");
             Slider(RagdollConfig.NetSendRate, "Poses per second", "0");
+            Slider(RagdollConfig.NetSmoothness, "Smoothing of other ragdolls");
+            Slider(RagdollConfig.NetExtrapolate, "Keep moving when late (ms)", "0");
+            Bool(RagdollConfig.NetFlushSends, "Send each pose straight away");
             GUILayout.Label((Controller.Network != null && Controller.Network.Sending ? "sending | " : "") +
                             "other ragdolls on screen: " + Net.RagdollNet.RemoteCount +
                             (Net.RagdollNet.HookInstalled ? "" : " | IK hook missing - may flicker"),

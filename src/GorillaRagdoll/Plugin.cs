@@ -23,7 +23,7 @@ namespace GorillaRagdoll
     {
         public const string Guid = "com.stridefr.gorillaragdoll";
         public const string Name = "GorillaRagdoll";
-        public const string Version = "0.2.1";
+        public const string Version = "0.2.2";
 
         public static ManualLogSource Log { get; private set; }
         public static RagdollController Controller { get; private set; }
