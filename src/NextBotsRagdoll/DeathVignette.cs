@@ -22,8 +22,10 @@ namespace NextBotsRagdoll
     /// hide the floor while you are trying to stand up, which is why the strength is capped well
     /// short of opaque.</para>
     ///
-    /// <para><b>Only you see it</b>, like the jumpscare and the death log: any camera that is
-    /// not your eye - the ragdoll mod's monitor camera, the kill cam - skips it entirely.</para>
+    /// <para><b>Only you see it.</b> It draws for your own views - the eye camera and, once the
+    /// ragdoll mod's third-person orbit takes over the monitor, that camera - and every other camera,
+    /// the kill cam's lens included, skips it. The monitor camera matters: it is what a screen
+    /// recording sees, and it is the view you are in the moment you are knocked down.</para>
     /// </summary>
     public sealed class DeathVignette : MonoBehaviour
     {
@@ -116,7 +118,6 @@ namespace NextBotsRagdoll
             float punch = age < red ? 1f : Mathf.Lerp(1f, 0.78f, Mathf.Clamp01((age - red) / Drain));
             colour.a = BridgeConfig.VignetteStrength.Value * punch * fade;
 
-            Place();
             if (_material != null) UiResources.TrySetColor(_material, colour);
         }
 
@@ -128,15 +129,13 @@ namespace NextBotsRagdoll
         }
 
         /// <summary>
-        /// Across the eye, every frame. Closer than anything else we draw and wide enough that
-        /// the edges are off the side of your vision, which is what makes it read as the view
-        /// going dark rather than as a picture hanging in front of you.
+        /// Across whichever camera is about to render, set just before it does. Closer than anything
+        /// else we draw and wide enough that the edges are off the side of the view, which is what
+        /// makes it read as the view going dark rather than as a picture hanging in front of it.
         /// </summary>
-        private void Place()
+        private void PlaceFor(Camera cam)
         {
-            var eye = Eye();
-            if (eye == null) return;
-            var t = eye.transform;
+            var t = cam.transform;
             const float distance = 0.22f;
             _root.position = t.position + t.forward * distance;
             _root.rotation = Quaternion.LookRotation(t.forward, t.up);
@@ -213,7 +212,7 @@ namespace NextBotsRagdoll
             return tex;
         }
 
-        /// <summary>Alpha-blended, and drawn after the world but under the jumpscare.</summary>
+        /// <summary>Alpha-blended, and drawn after the world.</summary>
         private static Material SeeThrough(Texture tex)
         {
             Shader shader = null;
@@ -243,16 +242,20 @@ namespace NextBotsRagdoll
 
         // ================================================================== eye camera only
 
+        // The veil is on for the player's own views - the eye camera and the ragdoll mod's
+        // third-person monitor camera - and off for every other camera, each time one is about to
+        // render. Placing it here, per camera, is what lets one quad serve both views.
         private void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (_renderer == null || cam == null || cam == _eye) return;
-            _renderer.forceRenderingOff = true;
+            if (_renderer == null) return;
+            if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { _renderer.forceRenderingOff = true; return; }
+            _renderer.forceRenderingOff = false;
+            PlaceFor(cam);
         }
 
         private void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (_renderer == null || cam == null || cam == _eye) return;
-            _renderer.forceRenderingOff = false;
+            if (_renderer != null) _renderer.forceRenderingOff = true;
         }
     }
 }

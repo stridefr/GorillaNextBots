@@ -1,8 +1,8 @@
 # GorillaNextBots
 
 **Garry's Mod-style nextbots and ragdolls for Gorilla Tag.** Spawn nextbots that hunt your
-friends across the map. When one catches you, its face fills your view, your gorilla goes limp and
-gets thrown the way the bot hit you, and the colour drains out of the world until you are back
+friends across the map. When one catches you, your gorilla goes limp and gets thrown the way the
+bot hit you, dust flies where you land, and the colour drains out of the world until you are back
 on your feet.
 
 By **stridefr**.
@@ -20,7 +20,7 @@ Three BepInEx plugins. Install all three for the full experience, or just the on
 |---|---|
 | **NextBots** | Spawn nextbots from a panel on your wrist. They find their way to you, cut you off, jump gaps, climb ledges, and sneak up while your back is turned. Any PNG or GIF becomes a bot, and a WAV with the same name becomes its chase sound. A Garry's Mod-style death log shows who got caught by what, in your headset and on the monitor. |
 | **GorillaRagdoll** | Full-body ragdoll for your gorilla. Go limp at the press of a button, tumble with real physics, and get up where you land. You can watch in first or third person in the headset, and there's a separate camera for the monitor. Other players with the mod see your ragdoll too. |
-| **NextBotsRagdoll** | Connects the two. A nextbot catching you knocks you down and throws you in the direction it hit you, with a jumpscare, a death vignette, per-bot weights and Garry's Mod impact and death sounds that the whole lobby hears. There is a kill cam too, switched off by default. Needs both of the others. |
+| **NextBotsRagdoll** | Connects the two. A nextbot catching you knocks you down and throws you in the direction it hit you, with a death vignette, landing dust, per-bot weights and Garry's Mod impact and death sounds that the whole lobby hears. There is a kill cam too, switched off by default. Needs both of the others. |
 
 ## Install
 
@@ -95,16 +95,15 @@ When a bot gets within about a metre of you:
 
 - **You ragdoll**, and your body is thrown in the direction the bot was running. A faster bot
   throws you harder, a sprinting ambush hardest of all, and heavy bots hit harder still.
-- **The bot's face fills your view** for a third of a second - its own image, animated if it is a
-  GIF - then fades. Turn it off, shorten it or fade it back under `[7. Jumpscare]` in
-  `com.stridefr.nextbotsragdoll.cfg` if you would rather not have it.
 - **The edges of your view flash red** and the colour drains out of everything while you are down,
-  coming back over a couple of seconds once you are up. `[8. Death vignette]` has the strength,
+  coming back over a couple of seconds once you are up. It shows in the headset and on the monitor,
+  including the third-person orbit camera, so it is in a screen recording. `[8. Death vignette]` has the strength,
   how long the red holds and how slowly the colour returns.
 - **Dust.** A body landing throws up a ring of dust that runs out along the floor, grit that bounces,
   a crack of fine dust at the moment of impact, and a scuff mark that fades over ten seconds or so.
-  The grit is chunky angular chips of the floor that tumble, land, skid and settle, then shrink away;
-  `grit` in `dust.json` is how many, `gritSize` how big, and 0 turns them off.
+  The debris is real 3D rocks that fly, hit the actual floor, walls and tables, bounce, skid and
+  settle wherever they land, then shrink away; `grit` in `dust.json` is how many (up to 60 a burst),
+  `gritSize` how big, and 0 turns them off.
   Landing hard on your feet does it too - dropping off a roof - not just being knocked down.
   Everyone in the lobby sees it, including other players' landings. The look is in
   `BepInEx/plugins/NextBotsRagdoll/dust.json`; the numbers under `[9. Landing dust]` in the config

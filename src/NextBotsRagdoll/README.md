@@ -34,13 +34,9 @@ source. `-p:NoDeploy=true` skips the copy into the game folder.
 
 | DEATH ON CATCH (wrist panel) | Before | With the bridge |
 |---|---|---|
-| off (default) | haptics, nothing else | jumpscare + ragdoll + knockback + kill cam, get up after `DownSeconds` |
-| on | teleport to spawn | jumpscare + ragdoll + knockback + kill cam, **then** respawn |
+| off (default) | haptics, nothing else | ragdoll + knockback + vignette, get up after `DownSeconds` |
+| on | teleport to spawn | ragdoll + knockback + vignette, **then** respawn |
 
-The jumpscare is the bot's own image (animated, for a GIF) filling your view for 0.35 s before it
-fades into the kill cam. It is drawn in front of the eye camera only, so no other camera - the kill
-cam, the ragdoll mod's monitor view - films it, and it is off in one line: `Enabled = false` under
-`7. Jumpscare`.
 
 Getting up early (your ragdoll toggle, or F10 panic) still counts, so in death mode you cannot
 escape the respawn by standing up.
@@ -143,7 +139,6 @@ Look in `BepInEx/LogOutput.log` for:
 Plugin.cs           BepInEx entry
 KnockdownBridge.cs  NextBots catch hooks, launch, knockdown timer, respawn, host-side exclusion, F5
 KillCam.cs          the kill cam object: film-camera model, lens, VR screen, monitor PiP (off by default)
-Jumpscare.cs        the bot's face in yours at the moment it catches you
 DeathVignette.cs    the red flash, the colour draining, and the world coming back
 Dust.cs             the landing dust: ring, grit, crack of fine dust, scuff marks
 HardLanding.cs      landing hard on your feet: a fall that stops suddenly, read off the player's rigidbody

@@ -13,7 +13,7 @@ multiplayer, still need testing in game.
 | 2 | Kill cam, as a real object | Built (0.2) | bridge |
 | 3 | Per-bot weights | Built (0.2) | bridge |
 | 4 | Impact sounds (Source) | Built (0.2) | bridge |
-| 5 | Jumpscare on catch | Planned | bridge |
+| 5 | Jumpscare on catch | Tried, removed | bridge |
 | 6 | Exact hit data over the network | Built (0.3) | NextBots + bridge |
 | 7 | Bots bump bodies | Planned | bridge |
 | 8 | Arm bracing | Planned | GorillaRagdoll |
@@ -127,21 +127,10 @@ PCM.
 
 **Settings:** `5. Impact sounds`: `Enabled`, `Volume`, `SoftSpeed`, `HardSpeed`, `BreakSpeed`.
 
-## 5. Jumpscare on catch (built)
+## 5. Jumpscare on catch (tried, removed)
 
-`Jumpscare.cs`. At the moment of the catch the bot's own texture is placed on a quad 0.4 m in
-front of the eye camera, grown from small with a little overshoot, held, then faded as the kill
-cam takes over. A GIF bot scares with its animation running, at the frame delays the file asks
-for.
-
-- Reuses `BotSkins.Find(...).Texture` and `Frames`, so it needs no new art.
-- Comfort settings from the start, under `7. Jumpscare`: `Enabled`, `Seconds` (0.35 default,
-  capped at 1.5), `Opacity` and `Distance`. It never strobes and never blacks the view out.
-- Hidden from every camera that is not your eye, the same way the death log and the kill cam's
-  own model are, so it cannot appear in the kill cam picture or the monitor camera.
-
-Not done: a per-bot scream (`bots/<NAME>.scare.wav`). The bot's hit and death sounds already
-play, so this would be a third sound on top of them.
+Built - the bot's own picture filling the view for a third of a second - and then taken out again:
+it was not wanted. Nothing else depended on it.
 
 ## 6. Exact hit data over the network (planned)
 
@@ -227,7 +216,9 @@ are up - which reads as the colour coming back into the world.
 - A veil rather than a post-process, on purpose. Adding a full-screen pass to the game's own URP
   renderer is the sort of thing that breaks on the next game update; a quad does not.
 - The middle of the view is never opaque, the red does not pulse, and `Enabled = false` removes it.
-- Hidden from every camera that is not your eye, like the jumpscare and the death log.
+- Drawn for the eye camera and the monitor's third-person camera, hidden from every other, like the
+  death log. It was once hidden from the monitor camera by mistake, so on a monitor in third person
+  it never showed.
 
 ## 15. Landing dust (built)
 
@@ -245,12 +236,17 @@ close beneath, no dust, which is what keeps a wall hit or a mid-air bot hit from
   shaded underside painted into the puff texture.
 - A ring of fast puffs as the leading edge, a slower layer left behind it, a column up the middle,
   curl and wind, a crack of fine dust, a scuff mark that fades over 12 s.
-- **Debris, not grit.** The first version threw 184 tiny soft dots, which read as snow. What reads
-  as debris is chunky angular pieces (four hard-edged chip outlines in a 2 x 2 atlas, each with a
-  lit face and a shaded one), mostly small with a few big, tumbling, arcing and coming down,
-  skidding and settling on the floor, and shrinking away rather than fading - a solid does not go
-  transparent. Most are kicked a short way and a few a long way, so they stay inside the dust
-  instead of being fired out past it. The atlas frame is chosen per particle through its age.
+- **Debris, not grit.** The first version threw 184 tiny soft dots, which read as snow. The second
+  used flat camera-facing chips, which floated: a sprite only knows the height of the spot it was
+  thrown from, so on uneven floor it hovers, and a billboard "lying" on the ground looks like a
+  sticker. Now they are real 3D rocks (three flat-shaded low-poly shapes, squashed differently
+  each time, shaded through a texture ramp because the game's unlit shader reads neither lighting
+  nor vertex colours), moved by this mod's own physics against the actual world: a ray each step,
+  bounce with the speed into the surface reduced by `gritBounce`, friction along it, the tumble
+  slowing with each hit, rest once barely bouncing on anything roughly level. No rigidbodies - a
+  hundred physics bodies in a VR game is a frame-rate cost and a chance of shoving the player or
+  the ragdoll. They shrink away at the end rather than fading; a solid does not go transparent.
+  Most are kicked a short way and a few a long way, so they stay inside the dust.
 - Fixed budgets: 420 puffs, 260 grains, 6 scuffs. `Amount` is the knob for VR frame rate, since
   the cost is overdraw.
 - **The look is `dust.json`**, the file the local design page (`tools/dust-demo`) writes. The mod

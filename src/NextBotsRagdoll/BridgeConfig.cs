@@ -65,11 +65,6 @@ namespace NextBotsRagdoll
         public static ConfigEntry<float> VignetteRedSeconds;
         public static ConfigEntry<float> VignetteRecoverSeconds;
 
-        public static ConfigEntry<bool> JumpscareEnabled;
-        public static ConfigEntry<float> JumpscareSeconds;
-        public static ConfigEntry<float> JumpscareOpacity;
-        public static ConfigEntry<float> JumpscareDistance;
-
         public static ConfigEntry<bool> SoundsEnabled;
         public static ConfigEntry<float> SoundVolume;
         public static ConfigEntry<float> SoftSpeed;
@@ -184,21 +179,6 @@ namespace NextBotsRagdoll
                 new ConfigDescription("How fast the pretend bot is moving when it hits you, m/s.",
                     new AcceptableValueRange<float>(0f, 30f)));
 
-            const string J = "7. Jumpscare";
-            JumpscareEnabled = cfg.Bind(J, "Enabled", true,
-                "The bot's own picture fills your view for a moment when it catches you. Switch it off if a " +
-                "face in your eyes in VR is not for you - everything else about the catch is unchanged.");
-            JumpscareSeconds = cfg.Bind(J, "Seconds", 0.35f,
-                new ConfigDescription("How long it holds before fading. Kept short on purpose.",
-                    new AcceptableValueRange<float>(0.05f, 1.5f)));
-            JumpscareOpacity = cfg.Bind(J, "Opacity", 1f,
-                new ConfigDescription("How solid the picture is. Below 1 you can still see through it to your body.",
-                    new AcceptableValueRange<float>(0.1f, 1f)));
-            JumpscareDistance = cfg.Bind(J, "Distance", 0.4f,
-                new ConfigDescription("Metres in front of your eyes. It is sized to fill your view from there, " +
-                                      "so this mostly decides how close it feels.",
-                    new AcceptableValueRange<float>(0.2f, 2f)));
-
             const string U = "9. Landing dust";
             DustEnabled = cfg.Bind(U, "Enabled", true,
                 "A body landing throws up a ring of dust with grit, and leaves a scuff on the floor. " +
@@ -232,7 +212,7 @@ namespace NextBotsRagdoll
                 new ConfigDescription("How heavy it gets. The middle of your view is never blacked out, " +
                                       "whatever this is set to.",
                     new AcceptableValueRange<float>(0.1f, 1f)));
-            VignetteWash = cfg.Bind(V, "Wash", 0.32f,
+            VignetteWash = cfg.Bind(V, "Wash", 0.5f,
                 new ConfigDescription("How much of the veil covers the middle of your view rather than just " +
                                       "the edges. This is the part that takes the colour out. 0 = edges only. " +
                                       "Changing it takes effect next time the game starts.",

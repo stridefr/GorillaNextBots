@@ -339,8 +339,7 @@ namespace NextBotsRagdoll
             var profile = BotProfiles.Get(string.IsNullOrEmpty(hit.Skin) ? hit.By : hit.Skin);
             Vector3 torso = puppet.Body.position;
 
-            // Before anything else: the face, while the hit is still the thing you are reacting to.
-            if (Jumpscare.Instance != null) Jumpscare.Instance.Play(hit.Skin, hit.By);
+            // Before anything else, while the hit is still the thing you are reacting to.
             if (DeathVignette.Instance != null) DeathVignette.Instance.Begin();
 
             Vector3 dir;

@@ -50,6 +50,9 @@ namespace GorillaRagdoll.Cameras
 
         public bool Alive => _cam != null;
 
+        /// <summary>The camera itself, so an effect can tell whether the one rendering is this.</summary>
+        public Camera Cam => _cam;
+
         /// <summary>Live speed, so the overlay can show what scroll has done to it.</summary>
         public float Speed => _speed;
 
