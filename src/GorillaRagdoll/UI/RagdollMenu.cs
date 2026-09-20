@@ -114,14 +114,26 @@ namespace GorillaRagdoll.UI
             }
             catch { /* the list is only a diagnostic */ }
 
-            try { _font = Font.CreateDynamicFontFromOSFont(match ?? name, 15); }
+            // A font Unity cannot see does not fail: it hands back a font with no letters in it,
+            // which draws whatever else is in the shared glyph texture - another mod's on-screen
+            // text, in the middle of the menu. So use the default font instead, and say why.
+            if (match == null)
+            {
+                Plugin.Log.LogWarning("[Menu] Windows has no font called '" + name + "' installed for all users, so the " +
+                                      "menu uses the default font. Right-click the font file and pick " +
+                                      "\"Install for all users\" to use it here.");
+                return null;
+            }
+
+            try
+            {
+                _font = Font.CreateDynamicFontFromOSFont(match, 15);
+                // Nothing Unity tracks holds this, and a level load may unload its glyph texture.
+                if (_font != null) _font.hideFlags = HideFlags.DontUnloadUnusedAsset;
+                Plugin.Log.LogInfo("[Menu] font '" + match + "'");
+            }
             catch (System.Exception ex) { Plugin.Log.LogWarning("[Menu] font '" + name + "': " + ex.Message); }
 
-            if (match != null)
-                Plugin.Log.LogInfo("[Menu] font '" + match + "'");
-            else
-                Plugin.Log.LogWarning("[Menu] font '" + name + "' is not in Unity's list of installed fonts, so the " +
-                                      "menu may show Unity's default instead. Installing it 'for all users' fixes that.");
             return _font;
         }
 

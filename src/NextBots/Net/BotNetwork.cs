@@ -41,8 +41,11 @@ namespace NextBots.Net
         ///    the same files in the same order.
         /// 3: a catch goes to the whole lobby and carries the bot, its image name, where it
         ///    was and how fast it was moving - the exact hit, for knockback and the death log.
+        /// 4: a catch says whether it is a real one or someone trying the test key, so a test
+        ///    shows up in everyone's death log without any client being able to claim a kill
+        ///    on somebody else.
         /// </summary>
-        public const byte Protocol = 3;
+        public const byte Protocol = 4;
 
         public Runtime.BotManager Bots;
 
@@ -299,10 +302,18 @@ namespace NextBots.Net
         /// <summary>
         /// A catch, to everyone. Reliable: a death log with holes in it, or a knockback that never
         /// arrives, is worse than a packet that turns up a moment late.
+        ///
+        /// <para>Real catches come from the host, which is the only client that runs bot brains.
+        /// A test catch (the F5 key) is sent by the player pretending to be caught, so that the
+        /// rest of the lobby sees the death log and hears it - everyone can announce their own
+        /// pretend death, nobody can announce anyone else's.</para>
         /// </summary>
         public void SendCaught(Runtime.CatchInfo info)
         {
-            if (!PhotonNetwork.InRoom || !IsAuthority || info == null) return;
+            if (info == null) return;
+            if (!PhotonNetwork.InRoom) return;
+            if (!info.Test && !IsAuthority) return;
+            if (info.Test && info.VictimActor != PhotonNetwork.LocalPlayer.ActorNumber) return;
 
             _buffer.SetLength(0);
             using (var w = new BinaryWriter(_buffer, System.Text.Encoding.UTF8, true))
@@ -318,6 +329,7 @@ namespace NextBots.Net
                 WriteVec(w, info.VictimPosition);
                 w.Write(info.Death);
                 w.Write(info.Time);
+                w.Write(info.Test);
             }
             Send(EvCaught, _buffer.ToArray(), reliable: true);
         }
@@ -481,8 +493,6 @@ namespace NextBots.Net
 
         private void OnCaught(BinaryReader r, int sender)
         {
-            if (!SenderIsAuthority(sender)) return;
-
             var info = new Runtime.CatchInfo
             {
                 VictimActor = r.ReadInt32(),
@@ -494,8 +504,13 @@ namespace NextBots.Net
                 BotVelocity = Vector3.ClampMagnitude(ReadVec(r), 60f),
                 VictimPosition = ReadVec(r),
                 Death = r.ReadBoolean(),
-                Time = r.ReadDouble()
+                Time = r.ReadDouble(),
+                Test = r.ReadBoolean()
             };
+
+            // A real catch is the host's to report. A test is the sender's own pretend death and
+            // nobody else's, so it is only believed about the player who sent it.
+            if (info.Test ? info.VictimActor != sender : !SenderIsAuthority(sender)) return;
 
             // Our own copies where we have them: the bot object, the image name as *our* file
             // spells it, and the victim's name as *our* nametag shows it. The host's strings

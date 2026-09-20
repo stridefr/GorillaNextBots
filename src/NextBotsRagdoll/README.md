@@ -34,8 +34,13 @@ source. `-p:NoDeploy=true` skips the copy into the game folder.
 
 | DEATH ON CATCH (wrist panel) | Before | With the bridge |
 |---|---|---|
-| off (default) | haptics, nothing else | ragdoll + knockback + kill cam, get up after `DownSeconds` |
-| on | teleport to spawn | ragdoll + knockback + kill cam, **then** respawn |
+| off (default) | haptics, nothing else | jumpscare + ragdoll + knockback + kill cam, get up after `DownSeconds` |
+| on | teleport to spawn | jumpscare + ragdoll + knockback + kill cam, **then** respawn |
+
+The jumpscare is the bot's own image (animated, for a GIF) filling your view for 0.35 s before it
+fades into the kill cam. It is drawn in front of the eye camera only, so no other camera - the kill
+cam, the ragdoll mod's monitor view - films it, and it is off in one line: `Enabled = false` under
+`7. Jumpscare`.
 
 Getting up early (your ragdoll toggle, or F10 panic) still counts, so in death mode you cannot
 escape the respawn by standing up.
@@ -115,6 +120,8 @@ Look in `BepInEx/LogOutput.log` for:
 - `[KillCam] built | lens 512x288 from '<camera>'`: the kill cam object exists. `lens NONE`
   means no camera to clone; the model still shows but the screen is blank.
 - `[Bridge] knocked down by 'X' | 300 kg (x1.94) | bot 6.0 m/s | launch 22.4 m/s`
+- `[Bridge] test catch (F5) by 'X', sent to the lobby`: the test key, and the rest of the room
+  was told - their death logs should show the same row.
 - `[Bots] profile 'X': 300 kg -> hits x1.94`: a bot file was read.
 - `[Bridge] could not ragdoll (...)`: GorillaRagdoll refused. The reason is in the brackets,
   and the catch fell back to NextBots' own behaviour.
@@ -125,6 +132,7 @@ Look in `BepInEx/LogOutput.log` for:
 Plugin.cs           BepInEx entry
 KnockdownBridge.cs  NextBots catch hooks, launch, knockdown timer, respawn, host-side exclusion, F5
 KillCam.cs          the kill cam object: film-camera model, lens, VR screen, monitor PiP
+Jumpscare.cs        the bot's face in yours at the moment it catches you
 BotProfiles.cs      per-bot weight files
 ImpactSounds.cs     Source-style sound sets, the listener on each ragdoll part, sharing (event 152)
 SourceSoundImport.cs  fills empty sound folders from the player's own GMod/HL2 install

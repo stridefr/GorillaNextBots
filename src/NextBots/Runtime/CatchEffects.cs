@@ -39,6 +39,11 @@ namespace NextBots.Runtime
 
         /// <summary>True on the caught player's own client.</summary>
         public bool VictimIsLocal;
+
+        /// <summary>The test key rather than a bot that actually reached someone. Everything
+        /// treats it as a real catch; it is carried so that the network code knows to believe it
+        /// from the player it is about instead of from the host.</summary>
+        public bool Test;
     }
 
     /// <summary>

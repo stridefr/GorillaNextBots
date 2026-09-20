@@ -127,16 +127,21 @@ PCM.
 
 **Settings:** `5. Impact sounds`: `Enabled`, `Volume`, `SoftSpeed`, `HardSpeed`, `BreakSpeed`.
 
-## 5. Jumpscare on catch (planned)
+## 5. Jumpscare on catch (built)
 
-At the moment of the catch, the bot's own texture pops up on a quad about 0.35 m in front of your
-face. It scales up over 0.15 s, holds for 0.2 s, then fades as the kill cam takes over. A scream
-plays from `bots/<NAME>.scare.wav`, falling back to the bot's chase loop.
+`Jumpscare.cs`. At the moment of the catch the bot's own texture is placed on a quad 0.4 m in
+front of the eye camera, grown from small with a little overshoot, held, then faded as the kill
+cam takes over. A GIF bot scares with its animation running, at the frame delays the file asks
+for.
 
-- Reuses `BotSkins.Get(...).Texture` and the animated GIF frames, so it needs no new art.
-- Needs a comfort setting from day one: some players will not want a full-face flash in VR.
-  Default on, capped at 0.35 s, never a strobe.
-- About a day of work: one component in the bridge, called from `KnockDown`.
+- Reuses `BotSkins.Find(...).Texture` and `Frames`, so it needs no new art.
+- Comfort settings from the start, under `7. Jumpscare`: `Enabled`, `Seconds` (0.35 default,
+  capped at 1.5), `Opacity` and `Distance`. It never strobes and never blacks the view out.
+- Hidden from every camera that is not your eye, the same way the death log and the kill cam's
+  own model are, so it cannot appear in the kill cam picture or the monitor camera.
+
+Not done: a per-bot scream (`bots/<NAME>.scare.wav`). The bot's hit and death sounds already
+play, so this would be a third sound on top of them.
 
 ## 6. Exact hit data over the network (planned)
 
@@ -146,6 +151,10 @@ its protocol version from 2 to 3. The guest then uses the exact bot, and the kil
 right one even in a crowd. The cost is that everyone in the lobby needs the new build, since the
 protocol check drops messages from other versions. This is the one feature that requires
 editing NextBots itself.
+
+Built in v0.27.0, and extended in v0.28.0 (protocol 4): a catch now also says whether it is real
+or the test key, so pressing F5 shows up in everyone's death log without letting any client claim
+a kill on somebody else.
 
 ## 7. Bots bump bodies (planned)
 

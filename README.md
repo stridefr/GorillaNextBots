@@ -76,7 +76,7 @@ everyone else sees the host's bots.
 | | **F6** | Same, from the keyboard |
 | | **F4** | Settings menu on the monitor |
 | | **F10** | Panic button: instantly get up and put everything back |
-| **Knockdowns** | **F5** | Pretend the nearest bot just caught you, to try it out |
+| **Knockdowns** | **F5** | Pretend the nearest bot just caught you, to try it out. The rest of the lobby sees it in their death log too |
 | **VR camera** | Right stick | Circle around your ragdoll and move the camera up or down (third-person view) |
 | | Left stick | Move the camera closer or further away |
 | **Monitor camera** | Hold right mouse | Look around |
@@ -93,6 +93,9 @@ When a bot gets within about a metre of you:
 
 - **You ragdoll**, and your body is thrown in the direction the bot was running. A faster bot
   throws you harder, a sprinting ambush hardest of all, and heavy bots hit harder still.
+- **The bot's face fills your view** for a third of a second - its own image, animated if it is a
+  GIF - then fades as the kill cam takes over. Turn it off, shorten it or fade it back under
+  `[7. Jumpscare]` in `com.stridefr.nextbotsragdoll.cfg` if you would rather not have it.
 - **A kill cam** films your body flying, then swings round to the bot that got you. It appears on
   a floating screen in VR and in the corner of the monitor. A little film camera flying around
   your body shows where the shot is being taken from.
@@ -123,6 +126,12 @@ in than there are rows, the oldest one fades out as it's pushed off the end.
 `Segoe UI`, and `bold` to `true` or `false`. Garry's Mod's own death notices are Verdana Bold. No
 fonts come with the mod: it uses the ones installed on your PC, and if a font isn't installed that
 text just uses the game's default.
+
+The monitor is fussier than the headset: it can only use fonts Windows has installed **for all
+users**, which is not what you get from double-clicking a font file and pressing Install. If the
+log says a font isn't installed for all users, either right-click the file and pick *Install for
+all users*, or set `monitorFont` to one that is - `Verdana` is always there - and keep your own
+font in the headset.
 
 ### Bot weights
 

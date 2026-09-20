@@ -46,6 +46,13 @@ namespace NextBots.UI
         /// <summary>A Windows font by family name ("Verdana", "Impact"); empty = the game's own
         /// (Liberation Sans). Garry's Mod's death notices are Verdana, bold, with a shadow.</summary>
         public string font = "";
+
+        /// <summary>The monitor copy's font, when it should differ from <see cref="font"/>; empty
+        /// = the same one. The monitor can only use fonts Windows has installed for every user,
+        /// so a font installed only for you works in the headset but needs a stand-in here -
+        /// Verdana, which Garry's Mod itself uses, is always there.</summary>
+        public string monitorFont = "";
+
         public bool bold = false;
         public float padding = 0.35f;
         public float spacing = 0.25f;

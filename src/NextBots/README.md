@@ -4,7 +4,8 @@ Garry's-Mod-style nextbots for Gorilla Tag: entities that hunt players across th
 point-and-place spawn menu, and an in-VR settings panel for tuning them live.
 
 **Status: the full single-player loop is verified working in game** — spawn, hunt, catch.
-Networking is built (protocol 3 since v0.27.0) but **not yet verified with a second client**. See
+Networking is verified working with a second client: bots, catches and the death log all travel.
+Protocol 4 since v0.28.0, so everyone in a lobby needs the same build. See
 [Current status](#current-status).
 
 > Part of [GorillaNextBots](../../README.md). Works on its own. Add

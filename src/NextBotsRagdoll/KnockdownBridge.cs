@@ -223,6 +223,10 @@ namespace NextBotsRagdoll
         /// The test key: the nearest bot catches you, through exactly the same path as a real
         /// catch. A bot standing still is given <c>TestBotSpeed</c> towards you, since a test
         /// that throws you nowhere tests nothing. With no bots out you are hit from the front.
+        ///
+        /// <para>The rest of the lobby is told as well, so the others see it in their death log
+        /// and hear it, exactly as they would a real catch. That is the point of the key: one
+        /// person can press it and everyone can check that deaths show up on their screen.</para>
         /// </summary>
         private void TestCatch()
         {
@@ -246,8 +250,8 @@ namespace NextBotsRagdoll
                 vel = towards.sqrMagnitude > 1e-4f ? towards.normalized * speed : -Flat(ViewForward()) * speed;
             }
 
-            // Through NextBots' real catch path, on this client only: the death log, the sounds
-            // and the knockdown all see exactly what a real catch would give them.
+            // Through NextBots' real catch path: the death log, the sounds and the knockdown all
+            // see exactly what a real catch would give them.
             int actor = LocalActor();
             var info = new CatchInfo
             {
@@ -261,9 +265,19 @@ namespace NextBotsRagdoll
                 VictimPosition = me,
                 Death = NextBotSettings.Active.DeathEnabled,
                 Time = CatchEffects.Now(),
-                Bot = bot
+                Bot = bot,
+                Test = true
             };
-            Plugin.Log.LogInfo("[Bridge] test catch (" + BridgeConfig.TestCatchKey.Value + ") by '" + info.BotName + "'");
+
+            var manager = Bots();
+            bool sent = false;
+            if (manager != null && manager.Net != null && PhotonNetwork.InRoom)
+            {
+                manager.Net.SendCaught(info);
+                sent = true;
+            }
+            Plugin.Log.LogInfo("[Bridge] test catch (" + BridgeConfig.TestCatchKey.Value + ") by '" + info.BotName + "'" +
+                               (sent ? ", sent to the lobby" : ""));
             CatchEffects.Dispatch(info);
         }
 
@@ -324,6 +338,9 @@ namespace NextBotsRagdoll
 
             var profile = BotProfiles.Get(string.IsNullOrEmpty(hit.Skin) ? hit.By : hit.Skin);
             Vector3 torso = puppet.Body.position;
+
+            // Before anything else: the face, while the hit is still the thing you are reacting to.
+            if (Jumpscare.Instance != null) Jumpscare.Instance.Play(hit.Skin, hit.By);
 
             Vector3 dir;
             var launch = Launch(hit, torso, profile, out dir);

@@ -601,7 +601,7 @@ namespace NextBots.UI
             _fontLine = ModFonts.LineHeightAtSizeOne(_font);
             // Only fake bold when there was no real bold face to use.
             _fontStyle = _style.bold && !trueBold ? FontStyles.Bold : FontStyles.Normal;
-            _guiFont = ModFonts.Monitor(_style.font);
+            _guiFont = ModFonts.Monitor(string.IsNullOrEmpty(_style.monitorFont) ? _style.font : _style.monitorFont);
         }
 
         /// <summary>
