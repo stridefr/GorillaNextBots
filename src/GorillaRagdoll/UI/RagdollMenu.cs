@@ -19,7 +19,22 @@ namespace GorillaRagdoll.UI
         public RagdollController Controller;
 
         private const int WindowId = 0x7A9D01;
-        private static readonly string[] Tabs = { "Ragdoll", "Camera", "Physics", "Active", "Launch" };
+        private static readonly string[] BaseTabs = { "Ragdoll", "Camera", "Physics", "Active", "Launch" };
+
+        // BaseTabs plus whatever other mods have added through MenuTabs. Rebuilt only when that changes.
+        private string[] _allTabs;
+        private int _allTabsVersion = -1;
+
+        private string[] AllTabs()
+        {
+            if (_allTabs != null && _allTabsVersion == MenuTabs.Version) return _allTabs;
+
+            var list = new System.Collections.Generic.List<string>(BaseTabs);
+            for (int i = 0; i < MenuTabs.Count; i++) list.Add(MenuTabs.Name(i));
+            _allTabs = list.ToArray();
+            _allTabsVersion = MenuTabs.Version;
+            return _allTabs;
+        }
 
         private Rect _rect = new Rect(24f, 24f, 420f, 0f);
         private bool _visible;
@@ -140,7 +155,9 @@ namespace GorillaRagdoll.UI
         private void DrawContents()
         {
             Header();
-            _tab = GUILayout.Toolbar(_tab, Tabs);
+            var tabs = AllTabs();
+            if (_tab >= tabs.Length) _tab = 0;
+            _tab = GUILayout.Toolbar(_tab, tabs);
             GUILayout.Space(4f);
 
             _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(360f));
@@ -151,6 +168,7 @@ namespace GorillaRagdoll.UI
                 case 2: TabPhysics(); break;
                 case 3: TabActive(); break;
                 case 4: TabLaunch(); break;
+                default: MenuTabs.Draw(_tab - BaseTabs.Length); break;
             }
             GUILayout.EndScrollView();
 
@@ -408,20 +426,20 @@ namespace GorillaRagdoll.UI
 
         private static GUIStyle _rich, _wrapped;
 
-        private static GUIStyle RichLabel()
+        public static GUIStyle RichLabel()
         {
             if (_rich == null) _rich = new GUIStyle(GUI.skin.label) { richText = true };
             return _rich;
         }
 
-        private static GUIStyle Wrapped()
+        public static GUIStyle Wrapped()
         {
             if (_wrapped == null)
                 _wrapped = new GUIStyle(GUI.skin.label) { wordWrap = true, fontSize = 11 };
             return _wrapped;
         }
 
-        private static void Bool(ConfigEntry<bool> entry, string label)
+        public static void Bool(ConfigEntry<bool> entry, string label)
         {
             bool v = GUILayout.Toggle(entry.Value, " " + label);
             if (v != entry.Value) entry.Value = v;
@@ -431,7 +449,7 @@ namespace GorillaRagdoll.UI
         /// Range comes from the config description, so a knob only has to declare its bounds
         /// once - in <see cref="RagdollConfig"/> - and both the .cfg and this slider honour it.
         /// </summary>
-        private static void Slider(ConfigEntry<float> entry, string label, string format = "0.00")
+        public static void Slider(ConfigEntry<float> entry, string label, string format = "0.00")
         {
             float min = 0f, max = 1f;
             var range = entry.Description != null
@@ -447,7 +465,7 @@ namespace GorillaRagdoll.UI
             if (!Mathf.Approximately(v, entry.Value)) entry.Value = v;
         }
 
-        private static void IntSlider(ConfigEntry<int> entry, string label)
+        public static void IntSlider(ConfigEntry<int> entry, string label)
         {
             int min = 0, max = 10;
             var range = entry.Description != null
@@ -482,7 +500,7 @@ namespace GorillaRagdoll.UI
             if (picked != current) entry.Value = options[picked];
         }
 
-        private static void EnumRow<T>(string label, ConfigEntry<T> entry) where T : struct
+        public static void EnumRow<T>(string label, ConfigEntry<T> entry) where T : struct
         {
             GUILayout.Label(label);
             var names = System.Enum.GetNames(typeof(T));

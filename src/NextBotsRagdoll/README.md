@@ -75,6 +75,9 @@ has none. Existing files are never overwritten.
 | | `FocusDelay` | 1.2 | seconds on the body before swinging to the bot |
 | | `Fov` / `ZoomFov` | 70 / 32 | |
 | | `Resolution` | 512 | width, 16:9 |
+| Hit timing | `SyncToAudio` | true | hold the picture back by the audio output delay |
+| | `ExtraDelayMs` | 0 | added to that, -100 to 400; up if a recording shows the picture early |
+| | `PainDelayMs` | 100 | how long after the thud the death cry plays |
 | Death vignette | `Enabled` | true | red flash, colour drain, slow return |
 | | `Strength` | 0.8 | never opaque in the middle, whatever this says |
 | | `Wash` | 0.32 | how much covers the middle rather than the edges (restart to change) |
@@ -142,6 +145,8 @@ KillCam.cs          the kill cam object: film-camera model, lens, VR screen, mon
 DeathVignette.cs    the red flash, the colour draining, and the world coming back
 Daze.cs             muffled hearing (low-pass on the audio listener) and a generated ear-ringing tone
 ViewCameras.cs      which cameras are the player's own view, for effects drawn in front of it
+HitBeat.cs          makes a hit land as one moment: heard now, seen when the sound reaches the ear
+EffectsTab.cs       the Effects tab in the F4 menu, registered through the ragdoll mod's MenuTabs
 ScreenSaturation.cs adds a full-screen pass to the game's URP renderers and drives the shader
 Shaders/            the shader source, its compiled AssetBundle (embedded in the DLL), and how to rebuild it
 Dust.cs             the landing dust: ring, grit, crack of fine dust, scuff marks

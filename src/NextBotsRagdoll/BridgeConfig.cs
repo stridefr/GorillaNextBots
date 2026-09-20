@@ -53,6 +53,10 @@ namespace NextBotsRagdoll
         public static ConfigEntry<bool> HardLandingEnabled;
         public static ConfigEntry<float> HardLandingMinSpeed;
 
+        public static ConfigEntry<bool> BeatSyncToAudio;
+        public static ConfigEntry<int> BeatExtraDelayMs;
+        public static ConfigEntry<int> BeatPainDelayMs;
+
         public static ConfigEntry<bool> DazeEnabled;
         public static ConfigEntry<bool> DazeOnHardImpacts;
         public static ConfigEntry<float> DazeRingVolume;
@@ -214,6 +218,22 @@ namespace NextBotsRagdoll
             DustOpacity = cfg.Bind(U, "Opacity", 1f,
                 new ConfigDescription("Multiplies how solid the dust is, on top of the look's own thickness.",
                     new AcceptableValueRange<float>(0.1f, 2f)));
+
+            const string H = "11. Hit timing";
+            BeatSyncToAudio = cfg.Bind(H, "SyncToAudio", true,
+                "Hold the flash, the colour drain and the dust back by the audio output delay, so they land with " +
+                "the sound instead of just before it. Sound takes 20 to 90 ms to reach your ear after the game asks " +
+                "for it; a picture takes none. Without this a hit feels like two events, and a recording looks out " +
+                "of sync.");
+            BeatExtraDelayMs = cfg.Bind(H, "ExtraDelayMs", 0,
+                new ConfigDescription("Added to the picture's delay, in milliseconds. The delay is estimated from the audio " +
+                                      "settings, which is right for most setups but not a Bluetooth headset or an unusual " +
+                                      "sound card. If a recording shows the picture early, raise this; if late, lower it.",
+                    new AcceptableValueRange<int>(-100, 400)));
+            BeatPainDelayMs = cfg.Bind(H, "PainDelayMs", 100,
+                new ConfigDescription("How long after the thud the death cry plays, in milliseconds. In a real hit the cry " +
+                                      "follows the impact rather than coinciding with it; 0 plays them together.",
+                    new AcceptableValueRange<int>(0, 400)));
 
             const string Z = "10. Impact daze";
             DazeEnabled = cfg.Bind(Z, "Enabled", true,

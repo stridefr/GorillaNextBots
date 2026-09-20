@@ -385,11 +385,12 @@ namespace NextBotsRagdoll
         private static bool WantsOthersDust => BridgeConfig.DustEnabled.Value && BridgeConfig.DustForOthers.Value;
 
         /// <summary>The bot connecting. Deeper and harder for heavier bots, via the profile.</summary>
-        public void OnBotHit(Vector3 position, BotProfile profile)
+        public void OnBotHit(Vector3 position, BotProfile profile, bool dust = true)
         {
             // A hit that lands a body on the floor puffs like any other hard landing; one in mid-air
-            // finds no floor close enough and throws nothing.
-            if (Dust.Instance != null)
+            // finds no floor close enough and throws nothing. The hit beat asks for the dust separately,
+            // so that it can land with the sound rather than in front of it.
+            if (dust && Dust.Instance != null)
                 Dust.Instance.Puff(position, BridgeConfig.HardSpeed.Value * 1.3f * (profile != null ? profile.Scale : 1f), 2.2f);
 
             if (!BridgeConfig.SoundsEnabled.Value) return;

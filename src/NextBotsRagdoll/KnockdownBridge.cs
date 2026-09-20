@@ -156,11 +156,15 @@ namespace NextBotsRagdoll
             Vector3 at;
             if (!PlayerNames.TryGetPosition(info.VictimActor, out at)) at = info.VictimPosition;
             var profile = BotProfiles.Get(info.BotSkin);
-            sounds.OnBotHit(at, profile);
-            if (WantsDeathSound(info.Death)) sounds.PlayDeath(at);
+            if (HitBeat.Instance != null) HitBeat.Instance.Fire(at, profile, info.Death, false, 0f);
+            else
+            {
+                sounds.OnBotHit(at, profile);
+                if (WantsDeathSound(info.Death)) sounds.PlayDeath(at);
+            }
         }
 
-        private static bool WantsDeathSound(bool killed)
+        internal static bool WantsDeathSound(bool killed)
         {
             switch (BridgeConfig.DeathSound.Value)
             {
@@ -228,6 +232,9 @@ namespace NextBotsRagdoll
         /// and hear it, exactly as they would a real catch. That is the point of the key: one
         /// person can press it and everyone can check that deaths show up on their screen.</para>
         /// </summary>
+        /// <summary>The Effects tab's button: the same as pressing the test key.</summary>
+        public void RunTest() => TestCatch();
+
         private void TestCatch()
         {
             var ctrl = GorillaRagdoll.Plugin.Controller;
@@ -339,20 +346,25 @@ namespace NextBotsRagdoll
             var profile = BotProfiles.Get(string.IsNullOrEmpty(hit.Skin) ? hit.By : hit.Skin);
             Vector3 torso = puppet.Body.position;
 
-            // Before anything else, while the hit is still the thing you are reacting to.
-            if (DeathVignette.Instance != null) DeathVignette.Instance.Begin();
-
-            // Heavier bots hit harder: an 80 kg bot is a solid hit, a 160 kg one is the worst there is.
-            if (Daze.Instance != null) Daze.Instance.Hit(Mathf.Clamp01(0.5f + 0.25f * profile.Scale));
-
             Vector3 dir;
             var launch = Launch(hit, torso, profile, out dir);
             Throw(puppet, launch, dir, profile.tumble >= 0f ? profile.tumble : BridgeConfig.Tumble.Value * profile.Scale);
             Haptics(profile);
-            if (ImpactSounds.Instance != null)
+
+            // Everything the hit does to the senses, as one moment: heard now, seen when the sound reaches
+            // the ear. Heavier bots hit harder - an 80 kg bot is a solid hit, a 160 kg one is the worst
+            // there is.
+            float dazePower = Mathf.Clamp01(0.5f + 0.25f * profile.Scale);
+            if (HitBeat.Instance != null) HitBeat.Instance.Fire(torso, profile, hit.Death, true, dazePower);
+            else
             {
-                ImpactSounds.Instance.OnBotHit(torso, profile);
-                if (WantsDeathSound(hit.Death)) ImpactSounds.Instance.PlayDeath(torso);
+                if (DeathVignette.Instance != null) DeathVignette.Instance.Begin();
+                if (Daze.Instance != null) Daze.Instance.Hit(dazePower);
+                if (ImpactSounds.Instance != null)
+                {
+                    ImpactSounds.Instance.OnBotHit(torso, profile);
+                    if (WantsDeathSound(hit.Death)) ImpactSounds.Instance.PlayDeath(torso);
+                }
             }
 
             _down = true;

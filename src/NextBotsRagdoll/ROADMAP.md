@@ -312,3 +312,29 @@ project rendering in linear colour reads 0.2 as a much lighter grey unless it is
 Near a wall the layer was clipped because it sat 25 cm from the camera and anything nearer poked
 through it; on a monitor it now sits just past the near plane, where nothing can be in front of it.
 The whole effect also lessens by itself over `Seconds` rather than holding until you stand.
+
+## 17. Hit beat and the Effects tab (built)
+
+**The beat** (`HitBeat.cs`). A hit sets off the thud, the flashbang bang, the death cry, the red flash,
+the colour drain, the dust and the ringing, and they used to be triggered in whatever order the code
+reached them, which does not make them arrive together. Sound has a delay a picture does not: the
+engine mixes into a buffer and hands it to the sound card a few buffers later, 20 to 90 ms typically,
+more on Bluetooth. A flash on the frame the hit is detected reaches the eye before the bang reaches the
+ear, so it feels like two events, and in a recording it looks like the audio is out of sync. Now:
+
+    t = 0                 thud + flashbang bang + the muffling starts     (heard)
+    t = PainDelay         the death cry                                   (a real hit's cry follows the impact)
+    t = audio latency     red flash + colour drain + dust burst           (seen)
+
+The latency is estimated from `AudioSettings.GetDSPBufferSize` and the output sample rate. That is an
+estimate - the engine does not report what the driver and the device add - so `ExtraDelayMs` tunes it by
+ear against a recording. Other players' hits go through the same timeline, minus the vignette and the
+ringing, which are effects on your own senses.
+
+**The Effects tab.** The F4 menu belongs to the ragdoll mod, which knows nothing about dust or ringing,
+and a second menu on a second key would mean two windows to find. So the ragdoll mod exposes
+`MenuTabs.Add(name, draw)` and makes its widgets public, and the bridge registers an Effects tab that
+draws with the same widgets as every other tab. A tab that throws is caught and reported inside itself,
+so an extension cannot take the ragdoll's own tabs down. Everything in it is a config entry read where
+it is used, so a slider changes the next hit; a button fires the same test hit as the test key. It also
+says which colour drain is in use and, if it is the fallback, why.

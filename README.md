@@ -75,7 +75,7 @@ everyone else sees the host's bots.
 | | Panel buttons | Pick a bot, spawn, undo, clear all, and tune settings on the `TUNE` page |
 | **Ragdoll** | Left controller **X** (hold for a moment) | Go ragdoll / get up |
 | | **F6** | Same, from the keyboard |
-| | **F4** | Settings menu on the monitor |
+| | **F4** | Settings menu on the monitor. Its **Effects** tab has every setting for what a hit does - the colour drain, the ringing, the dust, the sounds and their timing - with a button to fire a test hit, so you can drag a slider and see the result straight away |
 | | **F10** | Panic button: instantly get up and put everything back |
 | **Knockdowns** | **F5** | Pretend the nearest bot just caught you, to try it out. The rest of the lobby sees it in their death log too |
 | **VR camera** | Right stick | Circle around your ragdoll and move the camera up or down (third-person view) |
@@ -95,6 +95,13 @@ When a bot gets within about a metre of you:
 
 - **You ragdoll**, and your body is thrown in the direction the bot was running. A faster bot
   throws you harder, a sprinting ambush hardest of all, and heavy bots hit harder still.
+- **It all lands as one moment.** The thud and the flashbang bang play at once, the death cry follows
+  a beat later, and the flash, the colour drain and the dust are held back by your audio output delay
+  so they arrive with the sound instead of just before it. Sound takes 20 to 90 ms to reach your ear
+  after the game asks for it and a picture takes none, so without this a hit feels like two events and a
+  recording looks out of sync. `[11. Hit timing]` (and the Effects tab) has `ExtraDelayMs` to tune it
+  by ear: up if a recording shows the picture early, down if late, and usually up for a Bluetooth
+  headset.
 - **Your hearing goes.** A heavy hit muffles everything, like hearing it from the next room, and
   leaves a thin high whine on top, both fading over a few seconds. The whine is added after the
   muffling, so it stays clear. Heavier bots hit harder, and only the very hardest ragdoll impacts

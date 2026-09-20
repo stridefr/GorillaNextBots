@@ -25,7 +25,7 @@ namespace NextBotsRagdoll
     {
         public const string Guid = "com.stridefr.nextbotsragdoll";
         public const string Name = "NextBotsRagdoll";
-        public const string Version = "0.10.0";
+        public const string Version = "0.11.0";
 
         public static ManualLogSource Log { get; private set; }
 
@@ -42,6 +42,7 @@ namespace NextBotsRagdoll
             _host.AddComponent<KnockdownBridge>();
             _host.AddComponent<DeathVignette>();
             _host.AddComponent<Daze>();
+            _host.AddComponent<HitBeat>();
             _host.AddComponent<Dust>();
             _host.AddComponent<HardLanding>();
 
@@ -50,6 +51,8 @@ namespace NextBotsRagdoll
             var cam = new GameObject("NextBotsRagdoll.KillCam");
             cam.transform.SetParent(_host.transform, false);
             cam.AddComponent<KillCam>();
+
+            EffectsTab.Register();
 
             Log.LogInfo(Name + " " + Version + " | catches now ragdoll you (" +
                         (BridgeConfig.Enabled.Value ? "enabled" : "DISABLED in config") + ")");
