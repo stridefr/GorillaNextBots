@@ -216,6 +216,26 @@ worth acknowledging. Everything here is built independently: the puppet is assem
 from your live rig rather than shipped as an authored prefab, the body is aligned by measured
 delta rather than by hardcoded paths, and cosmetics are re-anchored structurally.)*
 
+### Correctly placed is not the same as visible
+
+Re-anchoring a cosmetic fixes where it is, not what renders it. A first-person cosmetic — glasses,
+most head slots — lives on Unity's `FirstPersonOnly` layer. That is right where it started: it is
+staged at the headset, so from any camera except your own eye it would look like debris floating
+in mid-air, and [MonitorCamera.cs](Cameras/MonitorCamera.cs) and
+[KillCam.cs](../NextBotsRagdoll/KillCam.cs) both strip that layer out of their culling mask for
+exactly that reason.
+
+`CosmeticReanchor` moves the item onto the head bone, which makes that reasoning stop applying —
+but the layer travels with the GameObject regardless of who its parent is, so the item stayed
+excluded from both cameras even once it was sitting correctly on the face. Right position, still
+invisible. `FixLayers` puts the item (and everything under it — a cosmetic is sometimes a frame
+plus separate lenses, and a layer change does not cascade to children by itself) onto whatever
+layer its new bone already renders on, and `End()` puts every layer back exactly when you get up.
+Log line: `"node(s) moved off FirstPersonOnly so the monitor and kill cam can see them"`.
+
+VR third person needed none of this: there is no separate camera to exclude anything from — see
+below.
+
 ### Why not just ragdoll the bones
 
 Because GT's avatar is an **IK rig, not an animation skeleton**. Verified layout:
@@ -405,6 +425,7 @@ Test in this order; each step de-risks the next.
 | Falls through the floor | Layer scores all 0 — see the `[Layer]` log line |
 | Ragdoll stops dead instead of carrying your speed | `InheritPlayerVelocity` off, or you were in a state where both the rigidbody and the body tracker read zero |
 | Cosmetics drift further the faster you move | The camera-lag correction did not run — check `[Cosmetics]` named the item as "rode the headset" |
+| Cosmetic correctly on the head bone but invisible on the monitor or kill cam | It is still on the `FirstPersonOnly` layer, which those cameras exclude on purpose for anything still floating where the headset is — see the section below. Check `[Cosmetics]` logged "node(s) moved off FirstPersonOnly" |
 | "no usable bones - see log" | Raise `MaxBoneDepth`; check the F11 dump for the real names |
 | Limbs missing | `MaxBoneDepth` too low, or names hit a finger exclusion |
 | Jitters / explodes | Lower `JointLooseness`, raise `SolverIterations`, turn off `SelfCollision` |

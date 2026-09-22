@@ -27,6 +27,16 @@ namespace GorillaRagdoll.Runtime
     ///
     /// <para>Original parent and local transform are recorded per item, so getting up puts
     /// everything back exactly rather than approximately.</para>
+    ///
+    /// <para><b>Re-anchoring alone is not enough.</b> A first-person cosmetic normally lives on
+    /// Unity's <c>FirstPersonOnly</c> layer - the layer meant for things staged right at the
+    /// headset that look like floating junk from anywhere else, so the mod's own cameras (the
+    /// monitor, the kill cam lens) deliberately exclude it. That is correct for a cosmetic still
+    /// riding the headset, but once this class has moved one onto the head bone it is exactly
+    /// that kind of junk no more - and left on that layer it is invisible to every one of those
+    /// cameras regardless of how correctly it is now posed. So every reanchored item, and
+    /// everything under it, is also switched onto the layer its new bone renders on for as long
+    /// as the ragdoll lasts, and put back with the rest on <see cref="End"/>.</para>
     /// </summary>
     public sealed class CosmeticReanchor
     {
@@ -39,7 +49,14 @@ namespace GorillaRagdoll.Runtime
             public Vector3 LocalScale;
         }
 
+        private struct LayerFix
+        {
+            public Transform Node;
+            public int Layer;
+        }
+
         private readonly List<Entry> _moved = new List<Entry>(8);
+        private readonly List<LayerFix> _layerFixed = new List<LayerFix>(16);
 
         /// <summary>Bones a stray can be attached to, best-match by distance.</summary>
         private static readonly string[] AnchorBones =
@@ -157,10 +174,13 @@ namespace GorillaRagdoll.Runtime
                 // scale; the pose is then corrected on top of it.
                 t.SetParent(anchor, true);
                 if (unlag) t.SetPositionAndRotation(fixedPos, fixedRot);
+
+                FixLayers(t, anchor.gameObject.layer);
             }
 
             if (_moved.Count > 0)
-                Plugin.Log.LogInfo("[Cosmetics] re-anchored " + _moved.Count + " stray item(s) onto the rig");
+                Plugin.Log.LogInfo("[Cosmetics] re-anchored " + _moved.Count + " stray item(s) onto the rig" +
+                                   (_layerFixed.Count > 0 ? ", " + _layerFixed.Count + " node(s) moved off FirstPersonOnly so the monitor and kill cam can see them" : ""));
         }
 
         /// <summary>Pulls a cosmetic registry into the candidate list, tolerating a rig whose
@@ -184,6 +204,20 @@ namespace GorillaRagdoll.Runtime
             if (seen.Add(t)) into.Add(t);
         }
 
+        /// <summary>Puts <paramref name="root"/> and everything under it onto <paramref name="layer"/>,
+        /// remembering each one that actually changed so <see cref="End"/> can put it back. A cosmetic
+        /// can be a small hierarchy of its own - a frame and separate lenses, say - and Unity does not
+        /// cascade a layer change to children by itself.</summary>
+        private void FixLayers(Transform root, int layer)
+        {
+            foreach (var node in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (node.gameObject.layer == layer) continue;
+                _layerFixed.Add(new LayerFix { Node = node, Layer = node.gameObject.layer });
+                node.gameObject.layer = layer;
+            }
+        }
+
         private static Transform Nearest(List<Transform> anchors, Vector3 point)
         {
             Transform best = null;
@@ -196,7 +230,8 @@ namespace GorillaRagdoll.Runtime
             return best;
         }
 
-        /// <summary>Puts every moved item back on its original parent, exactly.</summary>
+        /// <summary>Puts every moved item back on its original parent, exactly, and every layer it
+        /// touched back to what it was.</summary>
         public void End()
         {
             foreach (var e in _moved)
@@ -208,6 +243,10 @@ namespace GorillaRagdoll.Runtime
                 e.Item.localScale = e.LocalScale;
             }
             _moved.Clear();
+
+            foreach (var fix in _layerFixed)
+                if (fix.Node != null) fix.Node.gameObject.layer = fix.Layer;
+            _layerFixed.Clear();
         }
     }
 }
