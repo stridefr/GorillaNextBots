@@ -208,9 +208,11 @@ namespace NextBotsRagdoll
                 new ConfigDescription("Puffs in the biggest burst. The cost is mostly overdraw, so this is " +
                                       "the number to lower if a landing dips your frame rate in VR.",
                     new AcceptableValueRange<int>(20, 300)));
-            HardLandingEnabled = cfg.Bind(U, "HardLandings", true,
+            HardLandingEnabled = cfg.Bind(U, "HardLandings", false,
                 "Landing hard as a normal gorilla - dropping off a roof - throws the same dust, and other " +
-                "players see and hear it. A ragdoll's own landings are always covered.");
+                "players see and hear it. Off by default: dust is otherwise only a ragdoll thing, and a " +
+                "normal fast landing (a big jump, a rooftop drop) tripped this on its own. On always covers " +
+                "a ragdoll's own landings regardless of this setting.");
             HardLandingMinSpeed = cfg.Bind(U, "HardLandingSpeed", 8f,
                 new ConfigDescription("How fast, in m/s, you have to be falling when you land for it to count. " +
                                       "Around 8 is a drop off a roof; 5 catches a jump off a wall.",

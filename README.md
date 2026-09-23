@@ -125,7 +125,8 @@ When a bot gets within about a metre of you:
   The debris is real 3D rocks that fly, hit the actual floor, walls and tables, bounce, skid and
   settle wherever they land, then shrink away; `grit` in `dust.json` is how many (up to 60 a burst),
   `gritSize` how big, and 0 turns them off.
-  Landing hard on your feet does it too - dropping off a roof - not just being knocked down.
+  Only a ragdoll's landings trigger this by default; `HardLandings` in the config also puffs a
+  normal hard landing on your feet (dropping off a roof) if you want that too.
   Everyone in the lobby sees it, including other players' landings. The look is in
   `BepInEx/plugins/NextBotsRagdoll/dust.json`; the numbers under `[9. Landing dust]` in the config
   switch it off, change how hard a landing has to be, and how many puffs the biggest burst uses.

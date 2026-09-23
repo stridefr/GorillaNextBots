@@ -85,7 +85,7 @@ has none. Existing files are never overwritten.
 | Landing dust | `Enabled` | true | ring of dust, grit and a scuff where a body lands |
 | | `ShowForOthers` | true | other players' landings too |
 | | `MinSpeed` | 4 | m/s; slower impacts throw nothing |
-| | `HardLandings` | true | landing hard as a normal gorilla puffs too |
+| | `HardLandings` | **false** | landing hard as a normal gorilla also puffs, not just a ragdoll's; off because dust is otherwise a ragdoll-only thing |
 | | `HardLandingSpeed` | 8 | m/s you must be falling when you land; 5 catches a wall jump |
 | | `Amount` | 110 | puffs in the biggest burst - lower it if a landing dips VR frame rate |
 | | `Opacity` | 1 | multiplies the look's own thickness |
