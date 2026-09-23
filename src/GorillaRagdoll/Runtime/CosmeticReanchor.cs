@@ -79,6 +79,9 @@ namespace GorillaRagdoll.Runtime
         /// <summary>The one instance there ever is, for the static rendering hook to reach.</summary>
         private static CosmeticReanchor _active;
 
+        /// <summary>Logged once, not every frame, if this ever throws.</summary>
+        private static bool _hookFaulted;
+
         static CosmeticReanchor()
         {
             RenderPipelineManager.beginCameraRendering += OnBeginCamera;
@@ -290,18 +293,44 @@ namespace GorillaRagdoll.Runtime
 
         // ================================================================== the wrong-eye hide
 
+        /// <summary>
+        /// Both hooks below are wrapped, on purpose, even though nothing here looks like it should
+        /// throw. <c>RenderPipelineManager.beginCameraRendering</c>/<c>endCameraRendering</c> are
+        /// plain C# multicast events: Unity invokes every subscriber in turn with no isolation
+        /// between them, so one subscriber throwing stops every subscriber registered *after* it for
+        /// that call - including another mod's own per-camera hide/place logic. A cosmetic that is
+        /// meant to disappear when it shouldn't render is a much smaller problem than an unrelated
+        /// screen effect it broke on the way through never getting hidden or repositioned at all.
+        /// </summary>
         private static void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            var a = _active;
-            if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam) || !WantsHiddenFromEye()) return;
-            foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = true;
+            try
+            {
+                var a = _active;
+                if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam) || !WantsHiddenFromEye()) return;
+                foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = true;
+            }
+            catch (Exception ex) { LogHookFault(ex); }
         }
 
         private static void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            var a = _active;
-            if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam)) return;
-            foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = false;
+            try
+            {
+                var a = _active;
+                if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam)) return;
+                foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = false;
+            }
+            catch (Exception ex) { LogHookFault(ex); }
+        }
+
+        private static void LogHookFault(Exception ex)
+        {
+            if (_hookFaulted) return;
+            _hookFaulted = true;
+            Plugin.Log.LogWarning("[Cosmetics] the eye-hide camera hook threw and will stay quiet " +
+                                  "from here on, rather than risk breaking another mod's own camera " +
+                                  "hook sharing the same event: " + ex);
         }
 
         private bool IsEyeCamera(Camera cam)

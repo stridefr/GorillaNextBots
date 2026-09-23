@@ -251,6 +251,20 @@ normal play already gives you - and leaves it showing for the monitor, the kill 
 person, where the whole point of re-anchoring was to be seen. Log line: `"renderer(s) hidden from
 your own eye in first person"`.
 
+**That fix shipped with a real regression, caught the same day.** Doing this needed
+`CosmeticReanchor` to subscribe to `RenderPipelineManager.beginCameraRendering`/`endCameraRendering`
+for the first time - the same pair of events the bridge mod's `DeathVignette` and `KillCam`, and
+this mod's own `KillFeed`, already use for exactly the same kind of per-camera hide/show. These are
+plain C# multicast events: Unity calls every subscriber in turn with **no isolation between them**,
+so one subscriber throwing stops every subscriber registered *after* it in that event for the rest
+of that frame. A bug in the new subscriber - never confirmed exactly where, since it could not be
+reproduced outside the running game - meant `DeathVignette`'s own hook, if it happened to be
+registered later, could simply never run: its wash quad, switched on for a catch, never got told to
+switch off or to place itself correctly for whichever camera was rendering, and sat there - close to
+the camera, at whatever scale it was last left - filling the entire view. Every camera hook in the
+mod suite is now wrapped in its own `try/catch`, logging once rather than spamming, so a bug in any
+one of them can never again silently take out an unrelated one sharing the same event.
+
 ### First person had smoothing that does not belong there
 
 `CameraSmoothing` exists for a camera chasing a body from *outside* - the monitor's orbit, the VR

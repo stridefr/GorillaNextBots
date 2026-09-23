@@ -382,25 +382,48 @@ namespace NextBotsRagdoll
         // The layers are on for the player's own views - the eye camera and the ragdoll mod's
         // third-person monitor camera - and off for every other camera, each time one is about to
         // render. Placing them here, per camera, is what lets one pair of quads serve both views.
+        //
+        // Both hooks are wrapped: RenderPipelineManager's camera events are plain C# multicast
+        // events with no isolation between subscribers, so if this ever throws, every OTHER mod's
+        // own per-camera hook registered after it in the same event would silently stop running for
+        // the rest of that frame - and unlike this quad being briefly wrong, that is invisible until
+        // something else looks broken for reasons that have nothing to do with it.
         private void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (_washRenderer == null) return;
-            if (ScreenSaturation.Available) { SetShown(false); return; }   // the real effect is drawing
-            if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { SetShown(false); return; }
-            SetShown(true);
-            PlaceFor(cam);
-
-            // Said once per hit, so the log shows which camera actually drew it.
-            if (!_loggedView)
+            try
             {
-                _loggedView = true;
-                Plugin.Log.LogInfo("[Vignette] drawing for camera '" + cam.name + "' | fov " +
-                                   cam.fieldOfView.ToString("0") + " aspect " + cam.aspect.ToString("0.00") +
-                                   " near " + cam.nearClipPlane.ToString("0.000") + (cam.stereoEnabled ? " stereo" : ""));
+                if (_washRenderer == null) return;
+                if (ScreenSaturation.Available) { SetShown(false); return; }   // the real effect is drawing
+                if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { SetShown(false); return; }
+                SetShown(true);
+                PlaceFor(cam);
+
+                // Said once per hit, so the log shows which camera actually drew it.
+                if (!_loggedView)
+                {
+                    _loggedView = true;
+                    Plugin.Log.LogInfo("[Vignette] drawing for camera '" + cam.name + "' | fov " +
+                                       cam.fieldOfView.ToString("0") + " aspect " + cam.aspect.ToString("0.00") +
+                                       " near " + cam.nearClipPlane.ToString("0.000") + (cam.stereoEnabled ? " stereo" : ""));
+                }
             }
+            catch (System.Exception ex) { LogHookFault(ex); }
         }
 
-        private void OnEndCamera(ScriptableRenderContext ctx, Camera cam) => SetShown(false);
+        private void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
+        {
+            try { SetShown(false); }
+            catch (System.Exception ex) { LogHookFault(ex); }
+        }
+
+        private bool _hookFaulted;
+        private void LogHookFault(System.Exception ex)
+        {
+            if (_hookFaulted) return;
+            _hookFaulted = true;
+            SetShown(false);   // err towards invisible, not stuck on screen
+            Plugin.Log.LogWarning("[Vignette] a camera hook threw and will stay quiet from here on: " + ex);
+        }
 
         private void SetShown(bool on)
         {

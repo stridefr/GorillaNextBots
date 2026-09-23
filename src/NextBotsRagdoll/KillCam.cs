@@ -351,18 +351,29 @@ namespace NextBotsRagdoll
 
         // ================================================================== hide from the lens
 
+        // Wrapped like every other camera hook in the mod suite now is: these events give no
+        // subscriber isolation, so one throwing silently stops every later one sharing it - see
+        // DeathVignette.cs for the case that found it.
         private void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (cam == null || cam != _lens) return;
-            for (int i = 0; i < _hideFromLens.Count; i++)
-                if (_hideFromLens[i] != null) _hideFromLens[i].forceRenderingOff = true;
+            try
+            {
+                if (cam == null || cam != _lens) return;
+                for (int i = 0; i < _hideFromLens.Count; i++)
+                    if (_hideFromLens[i] != null) _hideFromLens[i].forceRenderingOff = true;
+            }
+            catch (System.Exception ex) { Plugin.Log.LogWarning("[KillCam] camera hook: " + ex.Message); }
         }
 
         private void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (cam == null || cam != _lens) return;
-            for (int i = 0; i < _hideFromLens.Count; i++)
-                if (_hideFromLens[i] != null) _hideFromLens[i].forceRenderingOff = false;
+            try
+            {
+                if (cam == null || cam != _lens) return;
+                for (int i = 0; i < _hideFromLens.Count; i++)
+                    if (_hideFromLens[i] != null) _hideFromLens[i].forceRenderingOff = false;
+            }
+            catch (System.Exception ex) { Plugin.Log.LogWarning("[KillCam] camera hook: " + ex.Message); }
         }
 
         // ================================================================== building it

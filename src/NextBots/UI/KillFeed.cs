@@ -506,18 +506,29 @@ namespace NextBots.UI
 
         // ------------------------------------------------------------------ eye camera only
 
+        // Wrapped like every camera hook in the mod suite now is: RenderPipelineManager's camera
+        // events give no isolation between subscribers, so one throwing silently stops every later
+        // one sharing it - see GorillaRagdoll's DeathVignette.cs for the case that found it.
         private void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (cam == null || cam == _eye || _vrRenderers.Count == 0) return;
-            for (int i = 0; i < _vrRenderers.Count; i++)
-                if (_vrRenderers[i] != null) _vrRenderers[i].forceRenderingOff = true;
+            try
+            {
+                if (cam == null || cam == _eye || _vrRenderers.Count == 0) return;
+                for (int i = 0; i < _vrRenderers.Count; i++)
+                    if (_vrRenderers[i] != null) _vrRenderers[i].forceRenderingOff = true;
+            }
+            catch (System.Exception ex) { Plugin.Log.LogWarning("[KillFeed] camera hook: " + ex.Message); }
         }
 
         private void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
         {
-            if (cam == null || cam == _eye || _vrRenderers.Count == 0) return;
-            for (int i = 0; i < _vrRenderers.Count; i++)
-                if (_vrRenderers[i] != null) _vrRenderers[i].forceRenderingOff = false;
+            try
+            {
+                if (cam == null || cam == _eye || _vrRenderers.Count == 0) return;
+                for (int i = 0; i < _vrRenderers.Count; i++)
+                    if (_vrRenderers[i] != null) _vrRenderers[i].forceRenderingOff = false;
+            }
+            catch (System.Exception ex) { Plugin.Log.LogWarning("[KillFeed] camera hook: " + ex.Message); }
         }
 
         // ================================================================== monitor
