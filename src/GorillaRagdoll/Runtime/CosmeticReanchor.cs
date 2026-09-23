@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using GorillaLocomotion;
+using GorillaRagdoll.Config;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace GorillaRagdoll.Runtime
 {
@@ -37,6 +39,18 @@ namespace GorillaRagdoll.Runtime
     /// cameras regardless of how correctly it is now posed. So every reanchored item, and
     /// everything under it, is also switched onto the layer its new bone renders on for as long
     /// as the ragdoll lasts, and put back with the rest on <see cref="End"/>.</para>
+    ///
+    /// <para><b>Visible to the wrong eye.</b> In normal play a first-person cosmetic is never
+    /// something you see yourself - it sits at the edge of your own vision by design, close in
+    /// front of the camera but off to the side of where you actually look, which is how glasses
+    /// disappear from your own view while everyone else still sees them. Re-anchored onto the head
+    /// bone it keeps that exact placement relative to the *body*, but the first-person camera
+    /// modes place the eye at a bone-relative offset of their own that has no reason to line up
+    /// with wherever the item happens to sit - so it can end up dead centre instead, filling the
+    /// view. Rather than try to reproduce the original placement's geometry exactly, the
+    /// re-anchored item is simply hidden from your own eye camera for as long as a first-person
+    /// mode is showing it - exactly the outcome normal play already gives you - and left showing
+    /// for every other camera: the monitor, the kill cam, third person.</para>
     /// </summary>
     public sealed class CosmeticReanchor
     {
@@ -57,6 +71,19 @@ namespace GorillaRagdoll.Runtime
 
         private readonly List<Entry> _moved = new List<Entry>(8);
         private readonly List<LayerFix> _layerFixed = new List<LayerFix>(16);
+
+        /// <summary>Renderers of items that rode the headset, hidden from your own eye camera only
+        /// while a first-person mode is showing it.</summary>
+        private readonly List<Renderer> _hideFromEye = new List<Renderer>(4);
+
+        /// <summary>The one instance there ever is, for the static rendering hook to reach.</summary>
+        private static CosmeticReanchor _active;
+
+        static CosmeticReanchor()
+        {
+            RenderPipelineManager.beginCameraRendering += OnBeginCamera;
+            RenderPipelineManager.endCameraRendering += OnEndCamera;
+        }
 
         /// <summary>Bones a stray can be attached to, best-match by distance.</summary>
         private static readonly string[] AnchorBones =
@@ -83,6 +110,7 @@ namespace GorillaRagdoll.Runtime
             // "original" parent, and restoring to that later is exactly how a cosmetic ends up
             // permanently offset. Always start from a clean slate.
             if (_moved.Count > 0) End();
+            _active = this;
 
             var anchors = new List<Transform>(AnchorBones.Length);
             foreach (var name in AnchorBones)
@@ -176,11 +204,17 @@ namespace GorillaRagdoll.Runtime
                 if (unlag) t.SetPositionAndRotation(fixedPos, fixedRot);
 
                 FixLayers(t, anchor.gameObject.layer);
+
+                // Only the items that actually rode the headset need hiding from your own eye - a
+                // held item or a chest badge that fell back to "nearest bone" is exactly as visible
+                // to you in first person as your own hands already are, and should stay that way.
+                if (ridesHeadset) _hideFromEye.AddRange(t.GetComponentsInChildren<Renderer>(true));
             }
 
             if (_moved.Count > 0)
                 Plugin.Log.LogInfo("[Cosmetics] re-anchored " + _moved.Count + " stray item(s) onto the rig" +
-                                   (_layerFixed.Count > 0 ? ", " + _layerFixed.Count + " node(s) moved off FirstPersonOnly so the monitor and kill cam can see them" : ""));
+                                   (_layerFixed.Count > 0 ? ", " + _layerFixed.Count + " node(s) moved off FirstPersonOnly so the monitor and kill cam can see them" : "") +
+                                   (_hideFromEye.Count > 0 ? ", " + _hideFromEye.Count + " renderer(s) hidden from your own eye in first person" : ""));
         }
 
         /// <summary>Pulls a cosmetic registry into the candidate list, tolerating a rig whose
@@ -247,6 +281,42 @@ namespace GorillaRagdoll.Runtime
             foreach (var fix in _layerFixed)
                 if (fix.Node != null) fix.Node.gameObject.layer = fix.Layer;
             _layerFixed.Clear();
+
+            // Nothing left to hide, so the render hook's next look at this instance is a no-op
+            // without needing to know the ragdoll has ended.
+            foreach (var r in _hideFromEye) if (r != null) r.forceRenderingOff = false;
+            _hideFromEye.Clear();
+        }
+
+        // ================================================================== the wrong-eye hide
+
+        private static void OnBeginCamera(ScriptableRenderContext ctx, Camera cam)
+        {
+            var a = _active;
+            if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam) || !WantsHiddenFromEye()) return;
+            foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = true;
+        }
+
+        private static void OnEndCamera(ScriptableRenderContext ctx, Camera cam)
+        {
+            var a = _active;
+            if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam)) return;
+            foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = false;
+        }
+
+        private bool IsEyeCamera(Camera cam)
+        {
+            if (cam == null) return false;
+            var p = GTPlayer.Instance;
+            return p != null && cam == p.mainCamera;
+        }
+
+        /// <summary>Only while a first-person mode is actually showing the eye where the item now
+        /// sits - not in third person, where the whole point of re-anchoring is to be seen.</summary>
+        private static bool WantsHiddenFromEye()
+        {
+            var mode = RagdollConfig.VrMode.Value;
+            return mode == CameraMode.FirstPersonUnlocked || mode == CameraMode.FirstPersonLocked;
         }
     }
 }

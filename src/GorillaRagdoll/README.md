@@ -237,6 +237,31 @@ VR third person needed none of this re-layering: it reuses the real headset came
 separate one, so there was no second culling mask to exclude the item from. It had a different
 camera problem of its own, immediately below.
 
+**Visible everywhere is not the same as visible in the right place, either.** Made visible to
+third person, the same item was now also visible to *first* person - and in normal play you never
+see your own head cosmetics at all: they sit at the edge of your own vision by design, close to
+the camera but off to the side of where you actually look, which is exactly how glasses stay out
+of your own view while everyone else sees them fine. Re-anchored onto the head bone, that item
+keeps its placement relative to the *body*; the first-person camera modes place the eye at a
+bone-relative offset of their own (`EyeOffset`) that has no reason to line up with it, so instead
+of sitting off to the side it could land dead centre and fill the view. Reproducing the original
+edge-of-vision geometry exactly was not worth chasing, so `CosmeticReanchor` hides the item from
+your own eye camera specifically for as long as a first-person mode is showing it - the outcome
+normal play already gives you - and leaves it showing for the monitor, the kill cam and third
+person, where the whole point of re-anchoring was to be seen. Log line: `"renderer(s) hidden from
+your own eye in first person"`.
+
+### First person had smoothing that does not belong there
+
+`CameraSmoothing` exists for a camera chasing a body from *outside* - the monitor's orbit, the VR
+orbit - easing out a ragdoll's rocking and settling so it does not become a seasick-inducing shake
+in the headset. Both first-person modes were using the same value for their own eye placement,
+which is wrong for a different reason: a first-person view is supposed to *be* your eyes, and any
+lag between where your head is and where the camera says it is reads as your own view dragging
+half a step behind you. `PlaceRigForEye` is now called with `0` for both `FirstPersonUnlocked` and
+`FirstPersonLocked` - instant placement, no Lerp - while `ApplyLockedRotation`'s own smoothing
+(comfort, not lag) is untouched.
+
 ### The monitor camera was also rendering into the headset
 
 Reported as two things that looked unrelated: the VR view stayed fixed on the body regardless of
@@ -427,6 +452,24 @@ view in the headset. A real flight is still followed.
 If anything else turns the view during the orbit, the log says so once per ragdoll:
 `[VrView] something other than the ragdoll turned your view while orbiting`.
 
+**The orbit used to visibly wobble back and forth**, worse the further out you were or the more
+you moved, and only in VR - the monitor's own orbit never did it. Two separate bugs:
+
+1. **Turning wrote the rig's position twice in one frame.** `Orbit()` used to call
+   `PlayerSuspension.RotateAroundPoint(target, yawDelta)` - an instant `Transform.RotateAround`,
+   moving position *and* rotation together - and then, a few lines later in the same tick, called
+   `PlaceRigForEye(target + dir * dist, smooth)`, which *smoothly* Lerps position towards a value
+   computed fresh from the same updated yaw. Every frame you turned, the rig snapped to an exact
+   spot and was immediately pulled part-way back towards a slightly different one. Position now
+   has exactly one writer: `PlayerSuspension.Yaw(yawDelta)` turns the rig's rotation only, and
+   `PlaceRigForEye`'s own smoothing is left to place it.
+2. **The wall-avoidance spherecast could flicker.** At a long orbit distance the ray is far more
+   likely to graze a doorframe or a corner as you turn, and a graze can report a hit on one frame
+   and clear on the next - handed straight to the camera, that is a visible snap in and out every
+   time it flips. Pulling in for a genuine obstruction is still instant, for safety, but easing
+   back out once the ray is clear (`_easedDist`, `VrOrbitZoomSpeed × 4`) is now smoothed, so a
+   graze no longer shows.
+
 ---
 
 ## First run
@@ -468,6 +511,8 @@ Test in this order; each step de-risks the next.
 | Ragdoll invisible | Skin layer vs camera culling mask; check the `[Clone]` log line |
 | Grey monitor image | URP data copy failed — logged as a warning |
 | VR view fixed on the body, deaf to head movement and to the stick | The monitor camera was reaching the headset — see "The monitor camera was also rendering into the headset" below |
+| VR third-person orbit wobbles back and forth, worse at range or while moving | Two fixed bugs — see "VR orbit and GT's own turning" above |
+| Face cosmetic fills your own first-person view | It is on the head bone correctly but not yet hidden from your own eye — see "Visible everywhere is not the same as visible in the right place, either" above |
 
 Config lives in `BepInEx/config/com.stridefr.gorillaragdoll.cfg`. **BepInEx prefers the file over
 the code default**, so editing a default in source does nothing once the file exists — delete

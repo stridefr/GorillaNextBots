@@ -318,19 +318,28 @@ namespace GorillaRagdoll.Runtime
         }
 
         /// <summary>
-        /// Swings the whole rig around a point in the world.
+        /// Turns the rig by <paramref name="yawDelta"/> degrees, in place.
         ///
-        /// <para>This is what makes a VR orbit camera comfortable: rotating about the <i>body</i>
-        /// rather than about your own eye moves you around it and turns you to keep facing it in
-        /// a single operation, which is what an orbit physically is. Rotating about the eye and
-        /// then separately re-aiming reads as two competing motions and is much worse to be
-        /// inside of.</para>
+        /// <para><b>Rotation only, deliberately.</b> The VR orbit's own next line always places the
+        /// rig afresh with <see cref="PlaceRigForEye"/>, computed straight from the stick's yaw and
+        /// distance - so this used to also move the rig around a pivot (<c>Transform.RotateAround</c>),
+        /// and that position write was thrown away a moment later by <c>PlaceRigForEye</c>'s own
+        /// smoothed one every single frame you turned. Two writers of the same frame's position, one
+        /// instant and one lagging behind it with its own Lerp, is exactly what "goes back and forth
+        /// while rotating" looks like - the camera would snap to the exact orbit spot this call put
+        /// it at, then immediately get pulled part-way back towards wherever the smoothed placement
+        /// still thought it belonged. Turning the rig without moving it leaves position to the one
+        /// piece of code that actually owns it, and nothing is fighting the smoothing any more.</para>
+        ///
+        /// <para>This is still what makes a VR orbit camera comfortable: rotating <i>with</i> the
+        /// orbit's yaw, not just translating, is what keeps the body in front of you as you swing
+        /// round it rather than sliding sideways past your own view.</para>
         /// </summary>
-        public static void RotateAroundPoint(Vector3 pivot, float yawDelta)
+        public static void Yaw(float yawDelta)
         {
             var p = GTPlayer.Instance;
             if (p == null || Mathf.Abs(yawDelta) < 0.0001f) return;
-            p.transform.RotateAround(pivot, Vector3.up, yawDelta);
+            p.transform.rotation = Quaternion.AngleAxis(yawDelta, Vector3.up) * p.transform.rotation;
         }
 
         /// <summary>Tilts the rig about the headset. Only reached when comfort settings allow.</summary>

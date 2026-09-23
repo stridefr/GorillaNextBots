@@ -34,6 +34,14 @@ namespace GorillaRagdoll.Cameras
         private float _orbitPitch;
         private float _orbitDistance;
 
+        /// <summary>The occlusion spherecast's distance, eased rather than applied raw. At a long
+        /// orbit distance the cast is likely to graze a doorway or a corner as you turn, and a graze
+        /// can report a hit on one frame and clear on the next - applied straight to the camera that
+        /// reads as a visible snap in and out, worse the further out you are or the more you move.
+        /// Pulling in stays instant, for safety; only the release, once nothing is in the way any
+        /// more, is eased.</summary>
+        private float _easedDist = -1f;
+
         /// <summary>Where the orbit is centred: the body, but only once it has moved further than
         /// <c>VrFollowDeadzone</c> from here.</summary>
         private Vector3 _anchor;
@@ -59,6 +67,7 @@ namespace GorillaRagdoll.Cameras
             PlayerSuspension.CaptureNeutralHead();
             _orbitPitch = 15f;
             _orbitDistance = RagdollConfig.ThirdPersonDistance.Value;
+            _easedDist = -1f;
             _hasAnchor = false;
             _snapReset = true;
             _watching = false;
@@ -106,12 +115,19 @@ namespace GorillaRagdoll.Cameras
 
             switch (mode)
             {
+                // No position lag in either first-person mode: this is meant to feel like your own
+                // eyes, and CameraSmoothing exists for a camera chasing a body from outside, not for
+                // where your own view sits. A lagging position is also how a reanchored face cosmetic
+                // ends up "in the way" - it sits exactly where the ragdoll's head bone is *this*
+                // frame, and a smoothed eye a moment behind that point is looking at it edge-on or
+                // from inside it rather than past it. Rotation smoothing (k, locked mode only) is
+                // untouched - that one is comfort, not lag.
                 case CameraMode.FirstPersonUnlocked:
-                    PlayerSuspension.PlaceRigForEye(head.TransformPoint(RagdollConfig.EyeOffset.Value), smooth);
+                    PlayerSuspension.PlaceRigForEye(head.TransformPoint(RagdollConfig.EyeOffset.Value), 0f);
                     break;
 
                 case CameraMode.FirstPersonLocked:
-                    PlayerSuspension.PlaceRigForEye(head.TransformPoint(RagdollConfig.EyeOffset.Value), smooth);
+                    PlayerSuspension.PlaceRigForEye(head.TransformPoint(RagdollConfig.EyeOffset.Value), 0f);
                     ApplyLockedRotation(head, headToView, k);
                     break;
 
@@ -172,7 +188,10 @@ namespace GorillaRagdoll.Cameras
             if (Mathf.Abs(yawDelta) > 0.0001f)
             {
                 _orbitYaw += yawDelta;
-                PlayerSuspension.RotateAroundPoint(target, yawDelta);
+                // Rotation only - PlaceRigForEye is about to place position itself, below, from
+                // the updated _orbitYaw. Moving the rig here too was a second, competing writer
+                // of the same frame's position; see Yaw's own doc comment.
+                PlayerSuspension.Yaw(yawDelta);
             }
 
             float pitchInput = RagdollConfig.VrOrbitInvertPitch.Value ? -look.y : look.y;
@@ -193,10 +212,14 @@ namespace GorillaRagdoll.Cameras
 
             RaycastHit hit;
             float probe = RagdollConfig.OcclusionRadius.Value;
-            if (Physics.SphereCast(target, probe, dir, out hit, dist, mask, QueryTriggerInteraction.Ignore))
-                dist = Mathf.Max(RagdollConfig.ThirdPersonMinDistance.Value, hit.distance);
+            bool blocked = Physics.SphereCast(target, probe, dir, out hit, dist, mask, QueryTriggerInteraction.Ignore);
+            if (blocked) dist = Mathf.Max(RagdollConfig.ThirdPersonMinDistance.Value, hit.distance);
 
-            PlayerSuspension.PlaceRigForEye(target + dir * dist, smooth);
+            // Instant in, eased out: see _easedDist's own comment for why a raw result flickers.
+            if (_easedDist < 0f || dist < _easedDist) _easedDist = dist;
+            else _easedDist = Mathf.MoveTowards(_easedDist, dist, RagdollConfig.VrOrbitZoomSpeed.Value * 4f * dt);
+
+            PlayerSuspension.PlaceRigForEye(target + dir * _easedDist, smooth);
         }
 
         /// <summary>

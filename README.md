@@ -223,15 +223,29 @@ Other players only hear your ragdoll if they have sounds in their own folders to
 
 ## Fixed since the last release
 
-- **The VR orbit was invisible.** In the headset, the monitor's own third-person camera was
-  reaching the display too - a Unity/URP setting neither camera had ever set - so what you saw
-  was that camera's own view: fixed to the body, deaf to your head and to the stick, because
-  nothing fed it either one. Your real headset view is now the only thing the HMD ever shows;
-  the monitor camera renders to the monitor and nowhere else.
-- **The spawn preview** was an opaque square laid flat on whatever you pointed at, which read as
-  a wall of green when you aimed near a wall. It is now a see-through copy of the actual bot,
-  full size, standing where it would land and facing you - and a small ring instead, with no
-  bot shape, anywhere it can't be placed.
+- **The death log's colours never matched what you picked.** This game renders in Linear colour
+  space, and a hex code you pick (`#RRGGBB`) is an sRGB value - handed straight to a material or a
+  `TextMeshPro.color` without converting, it comes out visibly lighter and more washed out than
+  the one you chose, for every colour except pure black and pure white. The box, the outline, the
+  bot-name and player-name colours in the headset copy are now corrected before they reach
+  anything on screen. The monitor copy (drawn with `OnGUI`) was never affected - only the headset
+  rows were showing this.
+- **First person had a lag your real eyes don't have**, because the ragdoll's camera-follow
+  smoothing was applying to it same as a third-person camera chasing a body from outside. Both
+  first-person modes now place the eye instantly, with none of `CameraSmoothing`'s lag.
+- **A reanchored face cosmetic could fill your own first-person view.** In normal play you never
+  see your own glasses - they sit at the edge of your vision by design. Re-anchored onto the head
+  bone for the ragdoll, that placement no longer has any reason to land outside your own view
+  the same way, and could end up dead centre. It's now hidden from your own eye specifically,
+  matching how normal play already looks to you, while staying visible on the monitor, the kill
+  cam and to anyone else.
+- **The VR third-person orbit could visibly jitter back and forth**, worse the further out you
+  orbited or the more you moved. Two different bugs, both fixed: turning the orbit wrote your
+  position twice in the same frame - once instantly, then again a moment later by the camera's
+  own smoothed placement, each undoing part of the other - and the wall-avoidance check could
+  flicker between "clear" and "blocked" as the ray grazed the edge of something at long range,
+  snapping the camera in and out every time it did. Turning now only turns; pulling in for a wall
+  is still instant, but easing back out once it's clear is smoothed so a graze doesn't show.
 
 ## Something went wrong?
 

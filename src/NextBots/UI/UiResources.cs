@@ -286,6 +286,22 @@ namespace NextBots.UI
         }
 
         /// <summary>
+        /// A colour someone picked as a hex code - from <c>killfeed.json</c>, say - corrected for
+        /// this project's colour space before it goes anywhere near a material or a
+        /// <c>TextMeshPro.color</c>.
+        ///
+        /// <para>In this game's Linear colour space, a shader's colour input is a linear intensity,
+        /// but a picked hex code (<c>ColorUtility.TryParseHtmlString</c>) is the sRGB value your
+        /// monitor would show - the same number means something different in each. Handed straight
+        /// through, a mid grey or a saturated colour comes out visibly lighter and more washed out
+        /// than the one that was picked; only pure black and pure white are unaffected, which is why
+        /// this can go unnoticed on a mostly-monochrome style and then look wrong on a proper one.
+        /// Pure IMGUI (<c>OnGUI</c>) is not part of this pipeline and must not be converted a second
+        /// time - it already shows a picked colour faithfully.</para>
+        /// </summary>
+        public static Color Picked(Color c) => QualitySettings.activeColorSpace == ColorSpace.Linear ? c.linear : c;
+
+        /// <summary>
         /// A unit quad in the XY plane facing -Z, built by hand. Deliberately not
         /// GameObject.CreatePrimitive, which attaches a MeshCollider - and a collider on
         /// anything hand-mounted shoves the player around.

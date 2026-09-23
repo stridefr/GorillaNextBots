@@ -302,14 +302,15 @@ namespace NextBots.UI
                                                 (_style.Top ? -1f : 1f) * e.Height * 0.5f, 0f);
 
             Vector3 centre = new Vector3(e.Width * 0.5f, 0f, 0f);
-            Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;
+            // Same correction as the text colours: box/border/highlight are picked hex codes too.
+            Color frame = UiResources.Picked(e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border);
             if (frame.a > 0.001f)
             {
                 float b = th * 0.12f;
                 Track(e, Quad(content, "border", centre + new Vector3(0f, 0f, 0.003f),
                               new Vector2(e.Width + 2f * b, e.Height + 2f * b), frame, null, QueueBorder), frame);
             }
-            var bg = _style.Background;
+            var bg = UiResources.Picked(_style.Background);
             if (bg.a > 0.001f)
                 Track(e, Quad(content, "box", centre + new Vector3(0f, 0f, 0.002f),
                               new Vector2(e.Width, e.Height), bg, null, QueueBox), bg);
@@ -324,6 +325,11 @@ namespace NextBots.UI
         {
             var font = _font != null ? _font : UiResources.GameTmpFont;
             if (font == null || string.IsNullOrEmpty(text)) return x;
+
+            // killerColor/victimColor are hex codes someone picked to look a certain way; correct
+            // once here so both the first paint and every later alpha-fade reapplication (which
+            // reads the same tracked colour back) show what was actually picked.
+            color = UiResources.Picked(color);
 
             float line = _font != null ? _fontLine : UiResources.TmpLineHeightAtSizeOne;
             float scale = height / Mathf.Max(0.0001f, line);
