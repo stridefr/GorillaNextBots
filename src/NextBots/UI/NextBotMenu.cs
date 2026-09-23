@@ -554,7 +554,12 @@ namespace NextBots.UI
             SetBtnText(_btnAction, _page != Page.Spawn ? "--" : (_armed ? "CANCEL" : "SPAWN"));
 
             if (_page != Page.Spawn || !canSpawn) _armed = false;
-            if (Aimer != null) Aimer.SetActive(_armed);
+            if (Aimer != null)
+            {
+                // The ghost shows the bot that SPAWN would place, so it follows the selection.
+                Aimer.SkinIndex = _spawnIndex;
+                Aimer.SetActive(_armed);
+            }
 
             _status.Text = canSpawn ? "" : (Director != null ? Director.BlockedReason : "STARTING");
             _status.Color = L.Warn;

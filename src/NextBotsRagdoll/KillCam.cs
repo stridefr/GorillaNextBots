@@ -569,6 +569,10 @@ namespace NextBotsRagdoll
             {
                 var dstData = dst.GetComponent<UniversalAdditionalCameraData>() ??
                               dst.gameObject.AddComponent<UniversalAdditionalCameraData>();
+
+                // Never the headset. It renders to a texture, which URP already keeps out of XR, but
+                // that is one assignment away from not being true.
+                dstData.allowXRRendering = false;
                 var srcData = src.GetComponent<UniversalAdditionalCameraData>();
                 if (srcData == null) return;
 

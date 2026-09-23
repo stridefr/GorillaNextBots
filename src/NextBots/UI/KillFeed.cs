@@ -34,6 +34,16 @@ namespace NextBots.UI
     {
         private const float ArriveTime = 0.25f;
 
+        /// <summary>
+        /// Where the headset rows sit in the draw order: after nearly everything, and in particular
+        /// after the ragdoll bridge's death overlay (Overlay-70 and -69). That overlay is a see-through
+        /// layer hung a hand's width in front of your eyes, darkest at the edges and corners - which is
+        /// exactly where this sits - so drawn in the usual transparent range the log was dimmed out
+        /// of view at precisely the moment you were being told who got you. The overlay writes no
+        /// depth, so drawing after it is enough to be on top of it.
+        /// </summary>
+        private const int QueueBorder = 3940, QueueBox = 3941, QueueText = 3942, QueueIcon = 3943;
+
         private KillFeedStyle _style = new KillFeedStyle();
 
         /// <summary>The style in use, for anything else drawing in a screen corner to keep out
@@ -276,7 +286,7 @@ namespace NextBots.UI
             if (showIcon)
             {
                 var icon = Quad(content, "icon", new Vector3(x + iconW * 0.5f, 0f, 0f), new Vector2(iconW, iconH),
-                                Color.white, e.Icon, 3001);
+                                Color.white, e.Icon, QueueIcon);
                 Track(e, icon, Color.white);
                 x += iconW + gap;
             }
@@ -297,12 +307,12 @@ namespace NextBots.UI
             {
                 float b = th * 0.12f;
                 Track(e, Quad(content, "border", centre + new Vector3(0f, 0f, 0.003f),
-                              new Vector2(e.Width + 2f * b, e.Height + 2f * b), frame, null, 2998), frame);
+                              new Vector2(e.Width + 2f * b, e.Height + 2f * b), frame, null, QueueBorder), frame);
             }
             var bg = _style.Background;
             if (bg.a > 0.001f)
                 Track(e, Quad(content, "box", centre + new Vector3(0f, 0f, 0.002f),
-                              new Vector2(e.Width, e.Height), bg, null, 2999), bg);
+                              new Vector2(e.Width, e.Height), bg, null, QueueBox), bg);
 
             _vrRenderers.RemoveAll(r => r == null);
             _vrRenderers.AddRange(row.GetComponentsInChildren<Renderer>(true));
@@ -350,6 +360,10 @@ namespace NextBots.UI
             tmp.raycastTarget = false;
             tmp.text = text;
             tmp.color = color;
+
+            // Its own material instance, so moving it up the draw order does not move every other
+            // piece of text in the game that shares this font.
+            tmp.fontMaterial.renderQueue = QueueText;
 
             var size = tmp.GetPreferredValues(text);
             var rt = tmp.rectTransform;

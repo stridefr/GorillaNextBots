@@ -233,8 +233,41 @@ plus separate lenses, and a layer change does not cascade to children by itself)
 layer its new bone already renders on, and `End()` puts every layer back exactly when you get up.
 Log line: `"node(s) moved off FirstPersonOnly so the monitor and kill cam can see them"`.
 
-VR third person needed none of this: there is no separate camera to exclude anything from — see
-below.
+VR third person needed none of this re-layering: it reuses the real headset camera rather than a
+separate one, so there was no second culling mask to exclude the item from. It had a different
+camera problem of its own, immediately below.
+
+### The monitor camera was also rendering into the headset
+
+Reported as two things that looked unrelated: the VR view stayed fixed on the body regardless of
+where you physically looked, and the right-stick orbit did nothing in the headset even though it
+worked perfectly on the monitor. One bug explained both.
+
+`MonitorCamera` is a second `Camera` this mod creates, purely to drive the monitor - its own
+orbit state, read from the mouse and keyboard, has nothing to do with VR at all. `Ensure()` sets
+`stereoTargetEye = StereoTargetEyeMask.None` on it, which reads as "keep this off the headset."
+It doesn't. That field is the *legacy* VR SDK's switch, and this game renders through the XR SDK
+(OpenVR/OpenXR via URP), which never looks at it. What URP actually asks, in
+`XRLayout.AddCamera`, is only:
+
+```
+isGameCamera = camera.cameraType is Game or VR
+xrSupported  = isGameCamera && camera.targetTexture == null && additionalData.allowXRRendering
+```
+
+`allowXRRendering` defaults to `true` and nothing here had ever set it, so the monitor camera —
+a `Game`-type camera with no render texture — passed that check and was added to the XR layout
+next to the real eye camera. With two base cameras eligible for the same headset frame, the one
+at higher depth (`src.depth + CameraDepthOffset`, +40 by default) drew last and won, so the HMD
+showed *its* picture: fixed on the body because that is all the monitor's own orbit state ever
+aims at, unresponsive to your head because nothing in `MonitorCamera` reads head tracking, and
+unresponsive to the right stick because the stick's orbit logic (`VrView.Orbit`) was running
+correctly the entire time — on `GTPlayer.transform`, which the real eye camera hangs off, which
+was no longer what you were looking through.
+
+Fix: `CopyUrpData` now sets `allowXRRendering = false` on both `MonitorCamera` and the kill cam's
+lens, the one setting URP actually checks. The stray `stereoTargetEye` assignment is left in
+place — harmless, just not what was doing the work.
 
 ### Why not just ragdoll the bones
 
@@ -434,6 +467,7 @@ Test in this order; each step de-risks the next.
 | Whole body floating away from you | The skeleton root was not restored — check the `[Restore] ... pose root 'rig' restored from` line, and `t.rig` / `d(head,vrrig)` in the probe diff |
 | Ragdoll invisible | Skin layer vs camera culling mask; check the `[Clone]` log line |
 | Grey monitor image | URP data copy failed — logged as a warning |
+| VR view fixed on the body, deaf to head movement and to the stick | The monitor camera was reaching the headset — see "The monitor camera was also rendering into the headset" below |
 
 Config lives in `BepInEx/config/com.stridefr.gorillaragdoll.cfg`. **BepInEx prefers the file over
 the code default**, so editing a default in source does nothing once the file exists — delete

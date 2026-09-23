@@ -44,7 +44,7 @@ that no skins are installed rather than looking like an invisible-bot bug.
 |---|---|
 | Left controller **Y** (secondary) | Toggle the wrist panel (configurable) |
 | **F7** | Keyboard fallback for the same toggle |
-| Right hand, point | Aim; a ghost shows where a bot would land |
+| Right hand, point | Aim; a see-through copy of the selected bot shows where and how it would land |
 | Panel `< PREV` / `NEXT >` | Browse spawn types or settings |
 | Panel `−` / `+` | Adjust the selected setting (hold to repeat) |
 | Panel `TUNE`/`SPAWN` | Switch page |
@@ -114,7 +114,7 @@ src/NextBots/
     PanelButton.cs        swept segment-vs-AABB press test, hold-to-repeat
     UiResources.cs        shader/font resolution that survives asset stripping
     NextBotMenu.cs        the wrist panel
-    SpawnAimer.cs         aim ray + ghost preview
+    SpawnAimer.cs         aim ray + a see-through copy of the selected bot, standing where it would land
     IBotDirector.cs       the narrow surface the menu drives
     KillFeed.cs           the death log, in the headset and on the monitor
     KillFeedStyle.cs      killfeed.json: its look and corner

@@ -71,7 +71,7 @@ everyone else sees the host's bots.
 | | Input | Does |
 |---|---|---|
 | **Bots** | Left controller **Y** | Open/close the wrist panel |
-| | Point your right hand | Aim where to spawn; a ghost preview shows where the bot will land |
+| | Point your right hand | Aim where to spawn; a see-through preview of the actual bot shows where and how it will land |
 | | Panel buttons | Pick a bot, spawn, undo, clear all, and tune settings on the `TUNE` page |
 | **Ragdoll** | Left controller **X** (hold for a moment) | Go ragdoll / get up |
 | | **F6** | Same, from the keyboard |
@@ -80,6 +80,7 @@ everyone else sees the host's bots.
 | **Knockdowns** | **F5** | Pretend the nearest bot just caught you, to try it out. The rest of the lobby sees it in their death log too |
 | **VR camera** | Right stick | Circle around your ragdoll and move the camera up or down (third-person view) |
 | | Left stick | Move the camera closer or further away |
+| | Your own head | Always free - looking up, down or around never fights the orbit; only the stick moves *where you stand* |
 | **Monitor camera** | Hold right mouse, drag | Circle the body, raise or lower the camera |
 | | A / D, W / S | The same, from the keyboard |
 | | Scroll | Zoom |
@@ -170,6 +171,9 @@ log says a font isn't installed for all users, either right-click the file and p
 all users*, or set `monitorFont` to one that is - `Verdana` is always there - and keep your own
 font in the headset.
 
+The log draws above everything else the mods put on screen, including the death vignette, so a
+row is never dimmed by your own screen going dark right as it appears.
+
 ### Bot weights
 
 After the first launch there's a file per bot in `BepInEx\plugins\NextBotsRagdoll\bots\`. Set a
@@ -215,6 +219,18 @@ Other players only hear your ragdoll if they have sounds in their own folders to
   is, because in VR your camera and your networked body are the same thing.
 - **The kill cam draws the scene a second time** while you're down, which is why it ships switched
   off. If you turn it on and your frame rate drops, lower `Resolution` in its settings.
+
+## Fixed since the last release
+
+- **The VR orbit was invisible.** In the headset, the monitor's own third-person camera was
+  reaching the display too - a Unity/URP setting neither camera had ever set - so what you saw
+  was that camera's own view: fixed to the body, deaf to your head and to the stick, because
+  nothing fed it either one. Your real headset view is now the only thing the HMD ever shows;
+  the monitor camera renders to the monitor and nowhere else.
+- **The spawn preview** was an opaque square laid flat on whatever you pointed at, which read as
+  a wall of green when you aimed near a wall. It is now a see-through copy of the actual bot,
+  full size, standing where it would land and facing you - and a small ring instead, with no
+  bot shape, anywhere it can't be placed.
 
 ## Something went wrong?
 

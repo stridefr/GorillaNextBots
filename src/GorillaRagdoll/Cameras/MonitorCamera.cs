@@ -135,6 +135,14 @@ namespace GorillaRagdoll.Cameras
             {
                 var dstData = dst.GetComponent<UniversalAdditionalCameraData>()
                               ?? dst.gameObject.AddComponent<UniversalAdditionalCameraData>();
+
+                // Keep this camera out of the headset. URP does not look at stereoTargetEye when it
+                // decides what to draw into the HMD - any game camera with no target texture goes
+                // there unless this is off - so without it the monitor's orbit view was drawn into
+                // the headset on top of the real eye camera, at depth 40, on every collapse: a view
+                // that ignored your head and stick, fixed on your own body.
+                dstData.allowXRRendering = false;
+
                 var srcData = src != null ? src.GetComponent<UniversalAdditionalCameraData>() : null;
                 if (srcData == null) return;
 

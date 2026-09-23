@@ -219,6 +219,11 @@ are up - which reads as the colour coming back into the world.
 - Drawn for the eye camera and the monitor's third-person camera, hidden from every other, like the
   death log. It was once hidden from the monitor camera by mistake, so on a monitor in third person
   it never showed.
+- **Sat in front of the death log it is meant to announce.** Both are transparent geometry hung a
+  short distance from the eye, and the overlay's render queue (Overlay-70/-69) drew after `KillFeed`'s
+  rows (2998-3001), so the very moment a catch appeared, its own screen effect could paint over it.
+  `KillFeed`'s boxes, text and icon now use queue 3940-3943 - above the overlay, which writes no
+  depth, so drawing later is all that is needed - so the log is legible through its own vignette.
 - **A see-through overlay cannot desaturate - a shader can, and the mod now ships one.** An overlay
   blends every pixel towards the *same* grey, so it reads as the scene getting darker or hazier, never
   as the colour draining out (0.38 grey over a dark map made it 49% brighter; 0.2 kept the brightness
