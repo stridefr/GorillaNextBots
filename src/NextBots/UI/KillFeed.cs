@@ -713,6 +713,9 @@ namespace NextBots.UI
 
         private static void Fill(Rect r, Color c, float alpha)
         {
+            // A tinted texture on the monitor takes its tint as a linear value in this linear-space
+            // game, unlike its text, so a picked dark box came out a light, flat grey. Convert it.
+            if (QualitySettings.activeColorSpace == ColorSpace.Linear) c = c.linear;
             GUI.color = new Color(c.r, c.g, c.b, c.a * alpha);
             GUI.DrawTexture(r, Texture2D.whiteTexture);
         }

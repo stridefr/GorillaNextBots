@@ -227,12 +227,14 @@ namespace NextBots.UI
 
             if (match == null)
             {
-                Plugin.Log.LogWarning("[Fonts] Windows has no font called '" + family + "' installed for all users, so " +
-                                      "the monitor copy uses the default font. Either install it for all users " +
-                                      "(right-click the font file and pick \"Install for all users\"), or set " +
-                                      "monitorFont in killfeed.json to one that is, like Verdana.");
-                Monitors[family] = null;
-                return null;
+                // Installed for you only, so Windows' list does not have it - but the file is on disk,
+                // and a Font built from the file itself has every letter in it.
+                font = MonitorFromFile(family);
+                if (font == null)
+                    Plugin.Log.LogWarning("[Fonts] no font called '" + family + "' found for the monitor copy, " +
+                                          "so it uses the default font.");
+                Monitors[family] = font;
+                return font;
             }
 
             try
@@ -250,6 +252,31 @@ namespace NextBots.UI
 
         /// <summary>A line of text's height over the font size, from the font's own metrics, so text
         /// can be sized by its font size the way a web page is.</summary>
+        private static Font MonitorFromFile(string family)
+        {
+            bool isBold;
+            var path = FindInstalled(family, false, out isBold);
+            if (path == null) return null;
+            try
+            {
+                var font = new Font(path) { hideFlags = HideFlags.DontUnloadUnusedAsset };
+                font.RequestCharactersInTexture("Ag", 32);
+                CharacterInfo ci;
+                if (!font.GetCharacterInfo('A', out ci, 32))
+                {
+                    Plugin.Log.LogWarning("[Fonts] '" + path + "' loaded with no letters in it; not using it on the monitor.");
+                    return null;
+                }
+                Plugin.Log.LogInfo("[Fonts] monitor font '" + family + "' from " + path);
+                return font;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning("[Fonts] monitor font '" + family + "' from " + path + ": " + ex.Message);
+                return null;
+            }
+        }
+
         public static float LineOverEm(TMP_FontAsset font)
         {
             try
