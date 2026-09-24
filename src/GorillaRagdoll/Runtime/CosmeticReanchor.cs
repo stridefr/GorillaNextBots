@@ -69,6 +69,13 @@ namespace GorillaRagdoll.Runtime
             public int Layer;
         }
 
+        private struct SwitchOn
+        {
+            public GameObject Node;
+            public bool Was;
+        }
+
+        private readonly List<SwitchOn> _switchedOn = new List<SwitchOn>(4);
         private readonly List<Entry> _moved = new List<Entry>(8);
         private readonly List<LayerFix> _layerFixed = new List<LayerFix>(16);
 
@@ -94,7 +101,7 @@ namespace GorillaRagdoll.Runtime
             RagdollPlan.Head, RagdollPlan.Torso, RagdollPlan.HandLeft, RagdollPlan.HandRight
         };
 
-        public int Count => _moved.Count;
+        public int Count => _moved.Count + _switchedOn.Count;
 
         /// <summary>
         /// Must run while the avatar is still in its live pose - before the driver starts
@@ -112,7 +119,7 @@ namespace GorillaRagdoll.Runtime
             // Capturing on top of an already-moved set would record a bone as an item's
             // "original" parent, and restoring to that later is exactly how a cosmetic ends up
             // permanently offset. Always start from a clean slate.
-            if (_moved.Count > 0) End();
+            if (_moved.Count > 0 || _switchedOn.Count > 0) End();
             _active = this;
 
             var anchors = new List<Transform>(AnchorBones.Length);
@@ -139,6 +146,10 @@ namespace GorillaRagdoll.Runtime
             try { headTarget = GTPlayer.Instance != null ? GTPlayer.Instance.CosmeticsHeadTarget : null; }
             catch { /* not ready */ }
 
+            List<GameObject> cosList = null, ovrList = null;
+            try { cosList = rig.cosmetics; } catch { /* not ready */ }
+            try { ovrList = rig.overrideCosmetics; } catch { /* not ready */ }
+
             var candidates = new List<Transform>(32);
             var seen = new HashSet<Transform>();
             Gather(candidates, seen, () => rig.cosmetics);
@@ -158,14 +169,24 @@ namespace GorillaRagdoll.Runtime
                                     (camera != null && t.IsChildOf(camera));
                 if (!ridesHeadset && t.IsChildOf(skeleton)) continue;   // already on a bone
 
-                // A first-person part is the headset-only copy of a cosmetic. When the bone hierarchy
-                // already carries a copy of its own under the same name, that one is what the monitor
-                // and the kill cam are meant to show, and moving this one over as well is what puts a
-                // second, mis-sized pair of glasses on the face.
-                if (ridesHeadset && HasTwinOnSkeleton(skeleton, t))
+                // A first-person part is the headset-only copy of a cosmetic. The rig also carries the
+                // copy meant for the body - on the head bone, switched off while the headset copy is
+                // the one in use. That one is posed by the game for exactly the place it is going to
+                // be seen from, so use it: switch it on for the ragdoll, and leave the headset copy
+                // where it is. Moving the headset copy across instead is what put a second,
+                // wrongly-placed pair of glasses on the face.
+                if (ridesHeadset)
                 {
-                    Plugin.Log.LogInfo("[Cosmetics]   '" + t.name + "' left alone: the rig already has its own copy on a bone");
-                    continue;
+                    var twin = FindBodyCopy(t, skeleton, cosList, ovrList);
+                    if (twin != null)
+                    {
+                        _switchedOn.Add(new SwitchOn { Node = twin.gameObject, Was = twin.gameObject.activeSelf });
+                        twin.gameObject.SetActive(true);
+                        _hideFromEye.AddRange(twin.GetComponentsInChildren<Renderer>(true));
+                        Plugin.Log.LogInfo("[Cosmetics]   '" + t.name + "' -> using the rig's own copy '" + twin.name + "' on '" +
+                                           (twin.parent != null ? twin.parent.name : "<none>") + "'");
+                        continue;
+                    }
                 }
 
                 // Provenance beats proximity. A first-person head cosmetic IS a head cosmetic,
@@ -237,7 +258,7 @@ namespace GorillaRagdoll.Runtime
                 if (ridesHeadset) _hideFromEye.AddRange(t.GetComponentsInChildren<Renderer>(true));
             }
 
-            if (_moved.Count > 0)
+            if (_moved.Count > 0 || _switchedOn.Count > 0)
                 Plugin.Log.LogInfo("[Cosmetics] re-anchored " + _moved.Count + " stray item(s) onto the rig" +
                                    (_layerFixed.Count > 0 ? ", " + _layerFixed.Count + " node(s) moved off FirstPersonOnly so the monitor and kill cam can see them" : "") +
                                    (_hideFromEye.Count > 0 ? ", " + _hideFromEye.Count + " renderer(s) hidden from your own eye in first person" : ""));
@@ -245,14 +266,21 @@ namespace GorillaRagdoll.Runtime
 
         private static string Fmt(Vector3 v) => "(" + v.x.ToString("0.###") + ", " + v.y.ToString("0.###") + ", " + v.z.ToString("0.###") + ")";
 
-        private static bool HasTwinOnSkeleton(Transform skeleton, Transform item)
+        /// <summary>The body-side copy of a headset cosmetic: the same name on the skeleton, or failing
+        /// that the entry at the same place in the other list.</summary>
+        private static Transform FindBodyCopy(Transform item, Transform skeleton,
+                                              List<GameObject> cosList, List<GameObject> ovrList)
         {
-            foreach (var n in skeleton.GetComponentsInChildren<Transform>(true))
-            {
-                if (n == item || n.IsChildOf(item)) continue;
-                if (n.name == item.name && n.GetComponentInChildren<Renderer>(true) != null) return true;
-            }
-            return false;
+            if (cosList == null) return null;
+            foreach (var go in cosList)
+                if (go != null && go.transform != item && go.transform.IsChildOf(skeleton) && go.name == item.name)
+                    return go.transform;
+
+            if (ovrList == null || ovrList.Count != cosList.Count) return null;
+            int i = ovrList.FindIndex(o => o != null && o.transform == item);
+            if (i < 0) return null;
+            var c = cosList[i];
+            return c != null && c.transform.IsChildOf(skeleton) ? c.transform : null;
         }
 
         /// <summary>Pulls a cosmetic registry into the candidate list, tolerating a rig whose
@@ -316,6 +344,10 @@ namespace GorillaRagdoll.Runtime
             }
             _moved.Clear();
 
+            foreach (var sw in _switchedOn)
+                if (sw.Node != null) sw.Node.SetActive(sw.Was);
+            _switchedOn.Clear();
+
             foreach (var fix in _layerFixed)
                 if (fix.Node != null) fix.Node.gameObject.layer = fix.Layer;
             _layerFixed.Clear();
@@ -342,6 +374,9 @@ namespace GorillaRagdoll.Runtime
             try
             {
                 var a = _active;
+                if (a != null)
+                    foreach (var sw in a._switchedOn)
+                        if (sw.Node != null && !sw.Node.activeSelf) sw.Node.SetActive(true);
                 if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam) || !WantsHiddenFromEye()) return;
                 foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = true;
             }
