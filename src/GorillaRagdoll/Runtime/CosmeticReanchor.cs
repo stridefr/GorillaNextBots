@@ -158,6 +158,16 @@ namespace GorillaRagdoll.Runtime
                                     (camera != null && t.IsChildOf(camera));
                 if (!ridesHeadset && t.IsChildOf(skeleton)) continue;   // already on a bone
 
+                // A first-person part is the headset-only copy of a cosmetic. When the bone hierarchy
+                // already carries a copy of its own under the same name, that one is what the monitor
+                // and the kill cam are meant to show, and moving this one over as well is what puts a
+                // second, mis-sized pair of glasses on the face.
+                if (ridesHeadset && HasTwinOnSkeleton(skeleton, t))
+                {
+                    Plugin.Log.LogInfo("[Cosmetics]   '" + t.name + "' left alone: the rig already has its own copy on a bone");
+                    continue;
+                }
+
                 // Provenance beats proximity. A first-person head cosmetic IS a head cosmetic,
                 // whatever happens to be nearest at the moment you collapse - and in VR your
                 // hands are very often up by your face, so picking the closest bone cheerfully
@@ -203,8 +213,21 @@ namespace GorillaRagdoll.Runtime
 
                 // worldPositionStays keeps the item's size across a parent with a different
                 // scale; the pose is then corrected on top of it.
+                Vector3 worldScale = t.lossyScale;
                 t.SetParent(anchor, true);
                 if (unlag) t.SetPositionAndRotation(fixedPos, fixedRot);
+
+                // Under a bone whose own scale is not the same on every axis, keeping the world pose
+                // shears the item - glasses come out stretched. Give it the scale that lands its
+                // world size where it was instead.
+                Vector3 a = anchor.lossyScale;
+                if (a.x > 0.0001f && a.y > 0.0001f && a.z > 0.0001f &&
+                    Mathf.Max(a.x, Mathf.Max(a.y, a.z)) / Mathf.Min(a.x, Mathf.Min(a.y, a.z)) > 1.01f)
+                {
+                    t.localScale = new Vector3(worldScale.x / a.x, worldScale.y / a.y, worldScale.z / a.z);
+                }
+                Plugin.Log.LogInfo("[Cosmetics]     scale item " + Fmt(worldScale) + " under '" + anchor.name +
+                                   "' " + Fmt(a) + " -> local " + Fmt(t.localScale));
 
                 FixLayers(t, anchor.gameObject.layer);
 
@@ -218,6 +241,18 @@ namespace GorillaRagdoll.Runtime
                 Plugin.Log.LogInfo("[Cosmetics] re-anchored " + _moved.Count + " stray item(s) onto the rig" +
                                    (_layerFixed.Count > 0 ? ", " + _layerFixed.Count + " node(s) moved off FirstPersonOnly so the monitor and kill cam can see them" : "") +
                                    (_hideFromEye.Count > 0 ? ", " + _hideFromEye.Count + " renderer(s) hidden from your own eye in first person" : ""));
+        }
+
+        private static string Fmt(Vector3 v) => "(" + v.x.ToString("0.###") + ", " + v.y.ToString("0.###") + ", " + v.z.ToString("0.###") + ")";
+
+        private static bool HasTwinOnSkeleton(Transform skeleton, Transform item)
+        {
+            foreach (var n in skeleton.GetComponentsInChildren<Transform>(true))
+            {
+                if (n == item || n.IsChildOf(item)) continue;
+                if (n.name == item.name && n.GetComponentInChildren<Renderer>(true) != null) return true;
+            }
+            return false;
         }
 
         /// <summary>Pulls a cosmetic registry into the candidate list, tolerating a rig whose
