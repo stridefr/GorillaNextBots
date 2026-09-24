@@ -439,7 +439,7 @@ namespace NextBots.Runtime
                 haveTarget = world.TryGetPlayer(Brain.TargetActor, out target);
 
             // 1. The mesh says there is a gap to cross.
-            if (_cfg.JumpEnabled && Agent != null && Agent.isOnNavMesh && Agent.isOnOffMeshLink)
+            if ((_cfg.JumpEnabled || _cfg.FallEnabled) && Agent != null && Agent.isOnNavMesh && Agent.isOnOffMeshLink)
             {
                 var link = Agent.currentOffMeshLinkData;
                 if (link.valid && _air.TryJump(link.endPos, _cfg, Time.time)) return true;
@@ -576,6 +576,17 @@ namespace NextBots.Runtime
             return true;
         }
 
+        /// <summary>True when the navmesh runs unbroken in a straight line from here to there at
+        /// about the same height - no gap, no ledge - so walking is the way.</summary>
+        private static bool WalkableStraight(Vector3 from, Vector3 to)
+        {
+            NavMeshHit a, b, edge;
+            if (!NavMesh.SamplePosition(from, out a, 0.6f, NavMesh.AllAreas)) return false;
+            if (!NavMesh.SamplePosition(to, out b, 0.6f, NavMesh.AllAreas)) return false;
+            if (Mathf.Abs(b.position.y - to.y) > 0.5f) return false;
+            return !NavMesh.Raycast(a.position, b.position, out edge, NavMesh.AllAreas);
+        }
+
         private static float PathLength(NavMeshPath path)
         {
             var corners = path.corners;
@@ -632,6 +643,9 @@ namespace NextBots.Runtime
 
                     // Must actually make progress toward the target.
                     if (Vector3.Distance(landing, targetPos) > currentDistance - 1f) continue;
+
+                    // Nothing to jump: a straight, unbroken walk gets there.
+                    if (WalkableStraight(from, landing)) continue;
 
                     // Headroom to occupy, and a clear arc to get there.
                     if (Physics.Raycast(landing + Vector3.up * 0.1f, Vector3.up, 1.2f,

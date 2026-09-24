@@ -253,10 +253,17 @@ namespace NextBots.Debugging
                 GUILayout.Label(t.Label, _mono, GUILayout.Width(150));
                 GUILayout.Label(t.Display, _mono, GUILayout.Width(80));
                 GUI.enabled = !locked;
-                if (GUILayout.Button("-", GUILayout.Width(24))) Say(t.Adjust(-1, false).Message);
-                if (GUILayout.Button("+", GUILayout.Width(24))) Say(t.Adjust(+1, false).Message);
-                if (GUILayout.Button("--", GUILayout.Width(28))) Say(t.Adjust(-1, true).Message);
-                if (GUILayout.Button("++", GUILayout.Width(28))) Say(t.Adjust(+1, true).Message);
+                int step = 0; bool coarse = false;
+                if (GUILayout.Button("-", GUILayout.Width(24))) step = -1;
+                if (GUILayout.Button("+", GUILayout.Width(24))) step = +1;
+                if (GUILayout.Button("--", GUILayout.Width(28))) { step = -1; coarse = true; }
+                if (GUILayout.Button("++", GUILayout.Width(28))) { step = +1; coarse = true; }
+                if (step != 0)
+                {
+                    var r = t.Adjust(step, coarse);
+                    Say(r.Message);
+                    if (r.Changed) Settings.Save();
+                }
                 GUI.enabled = true;
                 GUILayout.EndHorizontal();
             }

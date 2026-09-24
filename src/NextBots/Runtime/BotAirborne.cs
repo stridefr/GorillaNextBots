@@ -66,7 +66,7 @@ namespace NextBots.Runtime
         /// </summary>
         public bool TryJump(Vector3 landing, NextBotSettings cfg, float now)
         {
-            if (_active || cfg == null || !cfg.JumpEnabled || JumpOnCooldown(now)) return false;
+            if (_active || cfg == null) return false;
 
             var from = _bot.transform.position;
             var flat = landing - from;
@@ -78,6 +78,28 @@ namespace NextBots.Runtime
             if (distance < 0.4f && Mathf.Abs(rise) < 0.4f) return false;
 
             var g = Gravity(cfg);
+
+            // Going down, a jump is a hop into the air and back down again, which only slows the
+            // bot. Run off the edge instead - unless the landing is too far out to reach at a run,
+            // which is a gap and wants the real jump.
+            if (rise < -cfg.StepHeight && cfg.FallEnabled)
+            {
+                const float lip = 0.05f;
+                var up = Mathf.Sqrt(2f * g * lip);
+                var fallTime = up / g + Mathf.Sqrt(2f * (lip - rise) / g);
+                var runSpeed = distance / fallTime;
+                if (runSpeed <= Mathf.Max(2f, cfg.Speed * 1.25f))
+                {
+                    _velocity = flat / fallTime;
+                    _velocity.y = up;
+                    Begin(cfg, isJump: false);
+                    Plugin.Log.LogInfo("[Air] '" + _bot.SkinName + "' ran off a " + (-rise).ToString("0.0") +
+                                       "m drop, " + distance.ToString("0.0") + "m out");
+                    return true;
+                }
+            }
+
+            if (!cfg.JumpEnabled || JumpOnCooldown(now)) return false;
             var apex = Mathf.Max(0.25f, cfg.JumpHeight) + Mathf.Max(0f, rise);
 
             // Up-speed to reach the apex, then time to rise and then fall to the landing.

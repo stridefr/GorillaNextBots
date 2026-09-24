@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
 using UnityEngine;
 
 namespace NextBots.Config
@@ -224,9 +227,10 @@ namespace NextBots.Config
 
         /// <summary>
         /// How much shorter the jump has to make the remaining trip before it is worth doing.
-        /// 1.3 means the walking route must be at least 30% longer than jumping.
+        /// 2.5 means the walking route must be two and a half times as long; short of that it
+        /// walks. A jump is for a gap or a height, not for shaving a corner.
         /// </summary>
-        public float ParkourShortcutRatio = 1.3f;
+        public float ParkourShortcutRatio = 2.5f;
 
         /// <summary>Whether the bot drops off ledges instead of stopping at the edge.</summary>
         public bool FallEnabled = true;
@@ -480,6 +484,56 @@ namespace NextBots.Config
 
         /// <summary>Cosine of half the FOV, precomputed per read for the facing-cone test.</summary>
         public float HalfFovCos => Mathf.Cos(FieldOfView * 0.5f * Mathf.Deg2Rad);
+
+        // ---- saved between sessions --------------------------------------------
+
+        /// <summary>Your own settings, one <c>key=value</c> per line. By key rather than position, so
+        /// adding a setting later never shifts the others.</summary>
+        public static string SavePath =>
+            Path.Combine(BepInEx.Paths.ConfigPath, "com.stridefr.nextbots.settings.txt");
+
+        /// <summary>Not saved: a switch for right now, and coming back to frozen bots next launch
+        /// would look broken.</summary>
+        private static readonly HashSet<string> SessionOnly = new HashSet<string> { "move" };
+
+        public void Save()
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                foreach (var t in Tunables)
+                    if (!SessionOnly.Contains(t.Key))
+                        sb.Append(t.Key).Append('=').Append(t.Raw.ToString("R", CultureInfo.InvariantCulture)).AppendLine();
+                File.WriteAllText(SavePath, sb.ToString());
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning("[Settings] could not save: " + ex.Message); }
+        }
+
+        public void Load()
+        {
+            var path = SavePath;
+            if (!File.Exists(path)) return;
+            int applied = 0;
+            try
+            {
+                var byKey = new Dictionary<string, Tunable>();
+                foreach (var t in Tunables) byKey[t.Key] = t;
+
+                foreach (var line in File.ReadAllLines(path))
+                {
+                    int eq = line.IndexOf('=');
+                    if (eq <= 0) continue;
+                    Tunable t;
+                    float v;
+                    if (!byKey.TryGetValue(line.Substring(0, eq).Trim(), out t) || SessionOnly.Contains(t.Key)) continue;
+                    if (!float.TryParse(line.Substring(eq + 1).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out v)) continue;
+                    t.Raw = v;
+                    applied++;
+                }
+                Plugin.Log.LogInfo("[Settings] loaded " + applied + " saved setting(s) from " + path);
+            }
+            catch (Exception ex) { Plugin.Log.LogWarning("[Settings] could not load " + path + ": " + ex.Message); }
+        }
 
         // ---- sync -------------------------------------------------------------
 

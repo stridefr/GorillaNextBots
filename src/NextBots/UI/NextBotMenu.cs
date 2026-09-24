@@ -407,6 +407,7 @@ namespace NextBots.UI
             if (t.Count == 0) return;
             var r = t[Wrap(_configIndex, t.Count)].Adjust(dir, false);
             Say(r.Message, r.Changed ? Layout.Good : Layout.Warn);
+            if (r.Changed) Settings.Save();
         }
 
         private void TogglePage()
