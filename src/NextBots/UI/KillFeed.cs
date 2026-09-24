@@ -16,8 +16,8 @@ namespace NextBots.UI
     /// <para><b>Two outputs, drawn separately.</b> In the headset, each row is real geometry -
     /// a text mesh, the bot's own image on a quad, an optional box - hung off the eye camera
     /// in the corner you pick, so it stays in that corner of your view. On the monitor it is
-    /// a screen overlay in the same corner, drawn with the same text engine. Neither is a picture of the other,
-    /// so each can be sized for its own screen.</para>
+    /// a screen overlay in the same corner, drawn with the same text engine. Neither is a
+    /// picture of the other, so each can be sized for its own screen.</para>
     ///
     /// <para><b>Only the headset sees the headset copy.</b> Anything hung in front of your
     /// eyes is, to every other camera, a small sign floating next to your head: the ragdoll
@@ -97,8 +97,8 @@ namespace NextBots.UI
         private Transform _vrRoot;
         private Camera _eye;
 
-        // The style's font, resolved: headset font asset, its measured line height, whether bold
-        // has to be faked, and the monitor's font (null = IMGUI's own).
+        // The style's font, resolved: the font asset both copies draw with, its measured line
+        // height, and whether bold has to be faked.
         private TMP_FontAsset _font;
         private float _fontLine = 0.1f;
 
@@ -390,11 +390,18 @@ namespace NextBots.UI
                                                 (_style.Top ? -1f : 1f) * e.Height * 0.5f, 0f);
 
             Vector3 centre = new Vector3(e.Width * 0.5f, 0f, 0f);
+            float radius = _style.roundness * e.Height * 0.5f;
             // Picked hex codes go in as they are: Unity already converts material colours for the
             // linear colour space, and TextMeshPro its vertex colours, so converting here as well
             // darkened every colour past what was picked.
             Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;
-            if (frame.a > 0.001f)
+            if (frame.a > 0.001f && radius > 0.0005f)
+            {
+                float b = th * 0.12f;
+                Track(e, Rounded(content, "border", centre + new Vector3(0f, 0f, 0.003f),
+                                 new Vector2(e.Width + 2f * b, e.Height + 2f * b), radius + b, b, frame, QueueBorder), frame);
+            }
+            else if (frame.a > 0.001f)
             {
                 // A ring round the box, not a filled rectangle behind it: behind a see-through box a
                 // filled one shows through and turns the box grey.
@@ -406,12 +413,39 @@ namespace NextBots.UI
             }
             var bg = _style.Background;
             if (bg.a > 0.001f)
-                Track(e, Quad(content, "box", centre + new Vector3(0f, 0f, 0.002f),
-                              new Vector2(e.Width, e.Height), bg, null, QueueBox), bg);
+                Track(e, radius > 0.0005f
+                          ? Rounded(content, "box", centre + new Vector3(0f, 0f, 0.002f),
+                                    new Vector2(e.Width, e.Height), radius, 0f, bg, QueueBox)
+                          : Quad(content, "box", centre + new Vector3(0f, 0f, 0.002f),
+                                 new Vector2(e.Width, e.Height), bg, null, QueueBox), bg);
 
             _vrRenderers.RemoveAll(r => r == null);
             _vrRenderers.AddRange(row.GetComponentsInChildren<Renderer>(true));
             e.AppliedAlpha = -1f;
+        }
+
+        /// <summary>A rounded box (or, with <paramref name="ring"/> above zero, a rounded ring that
+        /// wide) as a nine-sliced sprite, so the corners stay round at any row width.</summary>
+        private Renderer Rounded(Transform parent, string name, Vector3 pos, Vector2 size, float radius,
+                                 float ring, Color color, int queue)
+        {
+            const int texels = 32;
+            float ppu = texels / Mathf.Max(0.0001f, radius);
+            var sprite = ring > 0f
+                ? RoundedSprites.Ring(texels, Mathf.Max(1, Mathf.RoundToInt(ring * ppu)), ppu)
+                : RoundedSprites.Fill(texels, ppu);
+
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.drawMode = SpriteDrawMode.Sliced;
+            sr.size = size;
+            sr.sharedMaterial = SeeThrough(color, null, queue);
+            sr.shadowCastingMode = ShadowCastingMode.Off;
+            sr.receiveShadows = false;
+            return sr;
         }
 
         private void Edge(Entry e, Transform content, Vector3 pos, Vector2 size, Color c) =>
@@ -736,10 +770,7 @@ namespace NextBots.UI
             // Box and outline first, so everything else draws on top of them.
             var box = MonRect(row, "box", _style.Background);
             Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;
-            RectTransform[] edges = null;
-            if (frame.a > 0.001f)
-                edges = new[] { MonRect(row, "top", frame), MonRect(row, "bottom", frame),
-                                MonRect(row, "left", frame), MonRect(row, "right", frame) };
+            var ring = frame.a > 0.001f ? MonRect(row, "outline", frame) : null;
 
             float x = pad;
             x = MonText(row, e.Killer, _style.KillerColor, size, x) + gap;
@@ -760,18 +791,28 @@ namespace NextBots.UI
             e.MonW = x;
             e.MonH = h;
             row.sizeDelta = new Vector2(x, h);
-            Place(box, 0f, 0f, x, h);
 
-            if (edges != null)
+            // Rounded, sliced so the corners hold their shape. The outline is a ring outside the box,
+            // as the designer's is - never a filled rectangle behind it, which showed through a
+            // see-through box and turned it grey.
+            int r = Mathf.Max(1, Mathf.RoundToInt(_style.roundness * h * 0.5f));
+            Place(box, 0f, 0f, x, h);
+            Slice(box, RoundedSprites.Fill(r, 100f));
+            if (ring != null)
             {
-                // A ring outside the box, as the designer's outline is - never a filled rectangle
-                // behind it, which showed through a see-through box and turned it grey.
-                const float b = 2f;
-                Place(edges[0], -b, h * 0.5f + b * 0.5f, x + 2f * b, b);
-                Place(edges[1], -b, -h * 0.5f - b * 0.5f, x + 2f * b, b);
-                Place(edges[2], -b, 0f, b, h);
-                Place(edges[3], x, 0f, b, h);
+                const int b = 2;
+                Place(ring, -b, 0f, x + 2f * b, h + 2f * b);
+                Slice(ring, RoundedSprites.Ring(r + b, b, 100f));
             }
+        }
+
+        private static void Slice(RectTransform rt, Sprite sprite)
+        {
+            var img = rt.GetComponent<UnityEngine.UI.Image>();
+            if (img == null) return;
+            img.sprite = sprite;
+            img.type = UnityEngine.UI.Image.Type.Sliced;
+            img.pixelsPerUnitMultiplier = 1f;
         }
 
         private float MonText(RectTransform row, string text, Color color, float size, float x)
@@ -843,18 +884,10 @@ namespace NextBots.UI
             _lineOverEm = ModFonts.LineOverEm(_font != null ? _font : UiResources.GameTmpFont);
             // Only fake bold when there was no real bold face to use.
             _fontStyle = _style.bold && !trueBold ? FontStyles.Bold : FontStyles.Normal;
-            if (string.IsNullOrEmpty(_style.monitorFont) ||
-                string.Equals(_style.monitorFont, _style.font, StringComparison.OrdinalIgnoreCase))
-            {
-                _monFont = _font;
-                _monFontStyle = _fontStyle;
-            }
-            else
-            {
-                bool monBold;
-                _monFont = ModFonts.Headset(_style.monitorFont, _style.bold, out monBold);
-                _monFontStyle = _style.bold && !monBold ? FontStyles.Bold : FontStyles.Normal;
-            }
+            // One font for both copies: the monitor draws with the same text engine now, so it can
+            // use anything the headset can.
+            _monFont = _font;
+            _monFontStyle = _fontStyle;
             _monLineOverEm = ModFonts.LineOverEm(_monFont != null ? _monFont : UiResources.GameTmpFont);
         }
 

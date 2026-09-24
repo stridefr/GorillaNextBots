@@ -47,10 +47,8 @@ namespace NextBots.UI
         /// (Liberation Sans). Garry's Mod's death notices are Verdana, bold, with a shadow.</summary>
         public string font = "";
 
-        /// <summary>The monitor copy's font, when it should differ from <see cref="font"/>; empty
-        /// = the same one. A font installed only for you is loaded from its file, so any font
-        /// that works in the headset works here too.</summary>
-        public string monitorFont = "";
+        /// <summary>How round the box's corners are: 0 square, 1 fully round ends.</summary>
+        public float roundness = 0.35f;
 
         public bool bold = false;
         public float padding = 0.35f;
@@ -111,6 +109,7 @@ namespace NextBots.UI
             iconSize = Mathf.Clamp(iconSize, 0.3f, 6f);
             padding = Mathf.Clamp(padding, 0f, 3f);
             spacing = Mathf.Clamp(spacing, 0f, 3f);
+            roundness = Mathf.Clamp01(roundness);
             vrDistance = Mathf.Clamp(vrDistance, 0.3f, 5f);
             vrOffsetX = Mathf.Clamp(vrOffsetX, 0f, 2f);
             vrOffsetY = Mathf.Clamp(vrOffsetY, 0f, 2f);
