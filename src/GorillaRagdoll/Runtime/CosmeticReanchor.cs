@@ -75,6 +75,8 @@ namespace GorillaRagdoll.Runtime
             public bool Was;
         }
 
+        /// <summary>Headset copies left behind at the real head while their body copy is in use.</summary>
+        private readonly List<Renderer> _hiddenCopies = new List<Renderer>(4);
         private readonly List<SwitchOn> _switchedOn = new List<SwitchOn>(4);
         private readonly List<Entry> _moved = new List<Entry>(8);
         private readonly List<LayerFix> _layerFixed = new List<LayerFix>(16);
@@ -183,6 +185,14 @@ namespace GorillaRagdoll.Runtime
                         _switchedOn.Add(new SwitchOn { Node = twin.gameObject, Was = twin.gameObject.activeSelf });
                         twin.gameObject.SetActive(true);
                         _hideFromEye.AddRange(twin.GetComponentsInChildren<Renderer>(true));
+
+                        // The headset copy stays at the real head, which the ragdoll has left, so any
+                        // view that is not from inside the headset sees it floating there.
+                        foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+                        {
+                            r.forceRenderingOff = true;
+                            _hiddenCopies.Add(r);
+                        }
                         Plugin.Log.LogInfo("[Cosmetics]   '" + t.name + "' -> using the rig's own copy '" + twin.name + "' on '" +
                                            (twin.parent != null ? twin.parent.name : "<none>") + "'");
                         continue;
@@ -343,6 +353,9 @@ namespace GorillaRagdoll.Runtime
                 e.Item.localScale = e.LocalScale;
             }
             _moved.Clear();
+
+            foreach (var r in _hiddenCopies) if (r != null) r.forceRenderingOff = false;
+            _hiddenCopies.Clear();
 
             foreach (var sw in _switchedOn)
                 if (sw.Node != null) sw.Node.SetActive(sw.Was);
