@@ -42,6 +42,7 @@ namespace NextBotsRagdoll
         private static AssetBundle _bundle;
         private static bool _tried;
         private static bool _on;
+        private static bool _stereoCapable;
 
         /// <summary>True once the effect is installed and can be used.</summary>
         public static bool Available { get; private set; }
@@ -79,6 +80,7 @@ namespace NextBotsRagdoll
                 _material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, name = "NextBots.ScreenSaturation" };
 
                 // Single-pass instanced VR needs its own variant of the shader: see Shaders/README.md.
+                _stereoCapable = singlePassVr;
                 if (singlePassVr) _material.EnableKeyword("NB_STEREO");
 
                 // Every renderer the asset has, not just the default one: which a camera uses is the
@@ -134,6 +136,19 @@ namespace NextBotsRagdoll
             _material.SetFloat(VigStart, Mathf.Clamp01(vignetteStart));
 
             if (!_on) SetActive(true);
+        }
+
+        /// <summary>
+        /// The pass runs for every camera on the renderer, but the single-pass variant only makes
+        /// sense for a camera that is really drawing to the headset: on a mono camera (the monitor's
+        /// view) it reads a texture array that is not there and paints the screen white. So the variant
+        /// follows each camera, set just before it renders.
+        /// </summary>
+        public static void PrepareFor(Camera cam)
+        {
+            if (!_stereoCapable || _material == null || cam == null) return;
+            if (cam.stereoEnabled) _material.EnableKeyword("NB_STEREO");
+            else _material.DisableKeyword("NB_STEREO");
         }
 
         /// <summary>Switches it off entirely: no pass is added to the frame, so it costs nothing.</summary>

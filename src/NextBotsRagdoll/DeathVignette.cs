@@ -392,6 +392,7 @@ namespace NextBotsRagdoll
         {
             try
             {
+                if (ScreenSaturation.Available) ScreenSaturation.PrepareFor(cam);
                 if (_washRenderer == null) return;
                 if (ScreenSaturation.Available) { SetShown(false); return; }   // the real effect is drawing
                 if (_started < 0f || !ViewCameras.IsPlayerView(cam)) { SetShown(false); return; }
