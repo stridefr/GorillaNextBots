@@ -61,6 +61,7 @@ namespace NextBots.UI
             public float[] FrameDelays;
             public Material IconMat;
             public int Frame;
+            public bool Reported;
             public bool Mine;
             public float Born;
 
@@ -230,7 +231,44 @@ namespace NextBots.UI
                 e.Row.localScale = Vector3.one * scale;
                 ApplyAlpha(e, alpha);
                 AnimateIcon(e);
+                if (!e.Reported && age > 0.5f) { e.Reported = true; ReportRow(e); }
             }
+        }
+
+        private int _reports;
+
+        /// <summary>What was actually built for a row, half a second in: every piece, where it is
+        /// relative to your eye, and what it is drawn with. The first few rows of a session only.</summary>
+        private void ReportRow(Entry e)
+        {
+            if (_reports >= 3 || e.Row == null || _eye == null) return;
+            _reports++;
+            var sb = new System.Text.StringBuilder("[KillFeed] row '" + e.Killer + "' built:");
+            var eye = _eye.transform;
+            foreach (var r in e.Row.GetComponentsInChildren<Renderer>(true))
+            {
+                var m = r.sharedMaterial;
+                var local = eye.InverseTransformPoint(r.transform.position);
+                sb.AppendLine().Append("    ").Append(r.name)
+                  .Append(" | active ").Append(r.gameObject.activeInHierarchy).Append(" enabled ").Append(r.enabled)
+                  .Append(" off ").Append(r.forceRenderingOff).Append(" seen ").Append(r.isVisible)
+                  .Append(" | eye-space ").Append(local.ToString("F3"))
+                  .Append(" size ").Append(r.transform.lossyScale.ToString("F3"))
+                  .Append(" | layer ").Append(r.gameObject.layer)
+                  .Append(" | ").Append(m != null && m.shader != null ? m.shader.name : "<no material>");
+                if (m != null)
+                {
+                    sb.Append(" q").Append(m.renderQueue);
+                    if (m.HasProperty("_Color")) sb.Append(" colour ").Append(m.GetColor("_Color"));
+                    if (m.HasProperty("_MainTex"))
+                    {
+                        var t = m.GetTexture("_MainTex");
+                        sb.Append(" tex ").Append(t != null ? t.name + " " + t.width + "x" + t.height : "<none>");
+                    }
+                }
+            }
+            sb.AppendLine().Append("    eye camera '").Append(_eye.name).Append("' cull mask 0x").Append(_eye.cullingMask.ToString("X"));
+            Plugin.Log.LogInfo(sb.ToString());
         }
 
         /// <summary>A GIF bot moves in the log as it does in the designer, not stuck on its first frame.</summary>
