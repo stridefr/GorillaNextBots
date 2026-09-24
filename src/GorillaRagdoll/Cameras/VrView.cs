@@ -34,13 +34,21 @@ namespace GorillaRagdoll.Cameras
         private float _orbitPitch;
         private float _orbitDistance;
 
-        /// <summary>The occlusion spherecast's distance, eased rather than applied raw. At a long
-        /// orbit distance the cast is likely to graze a doorway or a corner as you turn, and a graze
-        /// can report a hit on one frame and clear on the next - applied straight to the camera that
-        /// reads as a visible snap in and out, worse the further out you are or the more you move.
-        /// Pulling in stays instant, for safety; only the release, once nothing is in the way any
-        /// more, is eased.</summary>
+        /// <summary>The distance actually used, after walls. Pulled in quickly and let back out slowly,
+        /// both damped: a cast grazing a doorway flips between hit and clear from one frame to the
+        /// next, and applied raw that is the camera snapping in and out.</summary>
         private float _easedDist = -1f;
+        private float _distVel;
+
+        /// <summary>The point the orbit circles, damped towards the body's anchor. Only this and the
+        /// distance are smoothed; the stick's yaw and pitch are applied exactly, so turning can never
+        /// fight a lagging position.</summary>
+        private Vector3 _pivot;
+        private Vector3 _pivotVel;
+
+        /// <summary>Wall probe for the headset. Not the monitor's <c>OcclusionRadius</c>: that one is
+        /// tuned for a flat screen and, set large, has the headset bumping into everything nearby.</summary>
+        private const float HeadsetProbe = 0.12f;
 
         /// <summary>Where the orbit is centred: the body, but only once it has moved further than
         /// <c>VrFollowDeadzone</c> from here.</summary>
@@ -68,6 +76,8 @@ namespace GorillaRagdoll.Cameras
             _orbitPitch = 15f;
             _orbitDistance = RagdollConfig.ThirdPersonDistance.Value;
             _easedDist = -1f;
+            _distVel = 0f;
+            _pivotVel = Vector3.zero;
             _hasAnchor = false;
             _snapReset = true;
             _watching = false;
@@ -175,6 +185,7 @@ namespace GorillaRagdoll.Cameras
             if (!_hasAnchor)
             {
                 _anchor = centroid;
+                _pivot = centroid + Vector3.up * RagdollConfig.ThirdPersonHeight.Value;
                 _hasAnchor = true;
             }
             Vector3 drift = centroid - _anchor;
@@ -182,16 +193,20 @@ namespace GorillaRagdoll.Cameras
             float dead = RagdollConfig.VrFollowDeadzone.Value;
             if (driftLen > dead) _anchor += drift * ((driftLen - dead) / driftLen);
 
-            Vector3 target = _anchor + Vector3.up * RagdollConfig.ThirdPersonHeight.Value;
+            Vector3 goal = _anchor + Vector3.up * RagdollConfig.ThirdPersonHeight.Value;
+            _pivot = smooth > 0.001f
+                ? Vector3.SmoothDamp(_pivot, goal, ref _pivotVel, smooth, Mathf.Infinity, dt)
+                : goal;
+            Vector3 target = _pivot;
 
+            // Yaw is turned about the eye itself, so turning never slides the view sideways. Turning
+            // about the rig's origin did: in room-scale the origin can be a metre or more from your
+            // head, so each turn swung the eye across and the placement below then pulled it back.
             float yawDelta = OrbitYawInput(look.x, dt);
             if (Mathf.Abs(yawDelta) > 0.0001f)
             {
                 _orbitYaw += yawDelta;
-                // Rotation only - PlaceRigForEye is about to place position itself, below, from
-                // the updated _orbitYaw. Moving the rig here too was a second, competing writer
-                // of the same frame's position; see Yaw's own doc comment.
-                PlayerSuspension.Yaw(yawDelta);
+                PlayerSuspension.YawAboutNeutralEye(yawDelta);
             }
 
             float pitchInput = RagdollConfig.VrOrbitInvertPitch.Value ? -look.y : look.y;
@@ -203,23 +218,21 @@ namespace GorillaRagdoll.Cameras
 
             Vector3 dir = Quaternion.Euler(_orbitPitch, _orbitYaw, 0f) * Vector3.back;
 
-            // Same courtesy as the monitor camera: never let scenery end up between you and the
-            // body. In VR this also stops the headset being shoved inside a wall.
+            // Never let scenery end up between you and the body, and keep the headset out of walls.
             float dist = _orbitDistance;
             int mask;
             try { mask = GTPlayer.LocomotionEnabledLayers; }
             catch { mask = ~0; }
 
             RaycastHit hit;
-            float probe = RagdollConfig.OcclusionRadius.Value;
-            bool blocked = Physics.SphereCast(target, probe, dir, out hit, dist, mask, QueryTriggerInteraction.Ignore);
-            if (blocked) dist = Mathf.Max(RagdollConfig.ThirdPersonMinDistance.Value, hit.distance);
+            if (Physics.SphereCast(target, HeadsetProbe, dir, out hit, dist, mask, QueryTriggerInteraction.Ignore))
+                dist = Mathf.Max(0.3f, hit.distance);
 
-            // Instant in, eased out: see _easedDist's own comment for why a raw result flickers.
-            if (_easedDist < 0f || dist < _easedDist) _easedDist = dist;
-            else _easedDist = Mathf.MoveTowards(_easedDist, dist, RagdollConfig.VrOrbitZoomSpeed.Value * 4f * dt);
+            if (_easedDist < 0f) _easedDist = dist;
+            float ease = dist < _easedDist ? 0.06f : 0.4f;
+            _easedDist = Mathf.SmoothDamp(_easedDist, dist, ref _distVel, ease, Mathf.Infinity, dt);
 
-            PlayerSuspension.PlaceRigForEye(target + dir * _easedDist, smooth);
+            PlayerSuspension.PlaceRigForEye(target + dir * _easedDist, 0f);
         }
 
         /// <summary>

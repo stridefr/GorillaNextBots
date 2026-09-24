@@ -54,8 +54,8 @@ namespace NextBots.Runtime
             if (clip != null && _cfg.SoundEnabled) _source.Play();
         }
 
-        /// <summary>Called from the brain tick, which already knows whether the line is clear.</summary>
-        public void Tick(bool blocked, float distance, float dt)
+        /// <summary><paramref name="blocked"/> is how much of the bot is hidden from you, 0 to 1.</summary>
+        public void Tick(float blocked, float distance, float dt)
         {
             if (_source == null || _source.clip == null) return;
 
@@ -69,14 +69,14 @@ namespace NextBots.Runtime
             _source.maxDistance = Mathf.Max(8f, _cfg.SoundMaxDistance);
 
             // Ease rather than snap, or stepping past a doorframe clicks.
-            var target = blocked ? 1f : 0f;
-            _occlusion = Mathf.MoveTowards(_occlusion, target, dt * 4f);
+            _occlusion = Mathf.MoveTowards(_occlusion, Mathf.Clamp01(blocked), dt * 2f);
 
-            // Through a wall: quieter and duller. Both matter - volume alone still sounds
-            // like it is in the room with you.
-            var muffle = Mathf.Lerp(1f, Mathf.Clamp01(1f - _cfg.OcclusionMuffle), _occlusion);
-            _source.volume = _cfg.SoundVolume * muffle;
-            _lowPass.cutoffFrequency = Mathf.Lerp(22000f, 750f, _occlusion);
+            // Through a wall: quieter and duller, both scaled by the setting, so 0 really is off.
+            // The cutoff moves on a log scale, which is how pitch is heard - a straight line from
+            // 22 kHz is almost all spent in the range where it makes no audible difference.
+            float amount = Mathf.Clamp01(_cfg.OcclusionMuffle) * _occlusion;
+            _source.volume = _cfg.SoundVolume * (1f - 0.7f * amount);
+            _lowPass.cutoffFrequency = 22000f * Mathf.Pow(900f / 22000f, amount);
 
             // Wind up slightly as it closes, so a bot bearing down on you is audibly worse
             // than one wandering at the far end of the map.

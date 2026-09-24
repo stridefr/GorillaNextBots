@@ -40,6 +40,12 @@ namespace NextBots.Runtime
         public Vector3 Velocity => _velocity;
         public bool JumpOnCooldown(float now) => now < _nextJumpAllowedAt;
 
+        /// <summary>Brings the next allowed jump forward to <paramref name="at"/>, never later.</summary>
+        public void AllowJumpBy(float at)
+        {
+            if (_nextJumpAllowedAt > at) _nextJumpAllowedAt = at;
+        }
+
         private static float Gravity(NextBotSettings cfg)
         {
             var g = Mathf.Abs(Physics.gravity.y);

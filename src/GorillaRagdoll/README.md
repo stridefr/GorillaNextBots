@@ -475,14 +475,20 @@ you moved, and only in VR - the monitor's own orbit never did it. Two separate b
    `PlaceRigForEye(target + dir * dist, smooth)`, which *smoothly* Lerps position towards a value
    computed fresh from the same updated yaw. Every frame you turned, the rig snapped to an exact
    spot and was immediately pulled part-way back towards a slightly different one. Position now
-   has exactly one writer: `PlayerSuspension.Yaw(yawDelta)` turns the rig's rotation only, and
-   `PlaceRigForEye`'s own smoothing is left to place it.
+   has exactly one writer now - see the follow-up below.
 2. **The wall-avoidance spherecast could flicker.** At a long orbit distance the ray is far more
    likely to graze a doorframe or a corner as you turn, and a graze can report a hit on one frame
    and clear on the next - handed straight to the camera, that is a visible snap in and out every
-   time it flips. Pulling in for a genuine obstruction is still instant, for safety, but easing
-   back out once the ray is clear (`_easedDist`, `VrOrbitZoomSpeed × 4`) is now smoothed, so a
-   graze no longer shows.
+   time it flips.
+
+The first fix for (1) turned the rig about its own origin and left position to a smoothed
+`PlaceRigForEye`. That still wobbled: in room-scale the rig's origin can be a metre or more from
+your head, so each turn swung the eye sideways instantly and the smoothing then dragged it back.
+Now the orbit turns the rig about the neutral eye itself (`YawAboutNeutralEye`), so turning never
+moves the view, and places the rig exactly, with no smoothing of its own. The only things eased are
+the point being circled (damped towards the body) and the distance after walls (quick in, slow out,
+both damped). The wall probe for the headset is also its own small fixed radius rather than the
+monitor's `OcclusionRadius`, which set large had the headset catching on everything nearby.
 
 ---
 

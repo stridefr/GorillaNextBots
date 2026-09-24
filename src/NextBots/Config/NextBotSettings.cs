@@ -290,6 +290,9 @@ namespace NextBots.Config
         /// </summary>
         public bool DeathEnabled = false;
 
+        /// <summary>Off: every bot stands where it is and cannot catch anyone, until switched back on.</summary>
+        public bool BotsMove = true;
+
         // ---- sound ------------------------------------------------------------
         /// <summary>Play the per-skin chase loop.</summary>
         public bool SoundEnabled = true;
@@ -467,6 +470,11 @@ namespace NextBots.Config
 
                 new TunableBool("debug", "DEBUG OVERLAY", "DEBUG",
                     () => DebugOverlay, v => DebugOverlay = v),
+
+                // Last, so the lobby sync's index order is unchanged for older builds; the list
+                // wraps, so it is one press of UP from the top.
+                new TunableBool("move", "BOTS MOVE", "CONTROL",
+                    () => BotsMove, v => BotsMove = v),
             };
         }
 

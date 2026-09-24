@@ -317,29 +317,15 @@ namespace GorillaRagdoll.Runtime
             p.transform.RotateAround(p.mainCamera.transform.position, Vector3.up, yawDelta);
         }
 
-        /// <summary>
-        /// Turns the rig by <paramref name="yawDelta"/> degrees, in place.
-        ///
-        /// <para><b>Rotation only, deliberately.</b> The VR orbit's own next line always places the
-        /// rig afresh with <see cref="PlaceRigForEye"/>, computed straight from the stick's yaw and
-        /// distance - so this used to also move the rig around a pivot (<c>Transform.RotateAround</c>),
-        /// and that position write was thrown away a moment later by <c>PlaceRigForEye</c>'s own
-        /// smoothed one every single frame you turned. Two writers of the same frame's position, one
-        /// instant and one lagging behind it with its own Lerp, is exactly what "goes back and forth
-        /// while rotating" looks like - the camera would snap to the exact orbit spot this call put
-        /// it at, then immediately get pulled part-way back towards wherever the smoothed placement
-        /// still thought it belonged. Turning the rig without moving it leaves position to the one
-        /// piece of code that actually owns it, and nothing is fighting the smoothing any more.</para>
-        ///
-        /// <para>This is still what makes a VR orbit camera comfortable: rotating <i>with</i> the
-        /// orbit's yaw, not just translating, is what keeps the body in front of you as you swing
-        /// round it rather than sliding sideways past your own view.</para>
-        /// </summary>
-        public static void Yaw(float yawDelta)
+        /// <summary>Turns the rig about where a neutral head sits, so the view turns in place.</summary>
+        public static void YawAboutNeutralEye(float yawDelta)
         {
             var p = GTPlayer.Instance;
             if (p == null || Mathf.Abs(yawDelta) < 0.0001f) return;
-            p.transform.rotation = Quaternion.AngleAxis(yawDelta, Vector3.up) * p.transform.rotation;
+            Vector3 pivot = _hasNeutralHead
+                ? p.transform.TransformPoint(_neutralHeadLocal)
+                : (p.mainCamera != null ? p.mainCamera.transform.position : p.transform.position);
+            p.transform.RotateAround(pivot, Vector3.up, yawDelta);
         }
 
         /// <summary>Tilts the rig about the headset. Only reached when comfort settings allow.</summary>

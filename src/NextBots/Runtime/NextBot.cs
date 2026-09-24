@@ -151,6 +151,13 @@ namespace NextBots.Runtime
             ApplyTuning();
             EnsureCanMove(world);
 
+            if (!_cfg.BotsMove)
+            {
+                SetStopped(true);
+                TickAudio(world, dt);
+                return;
+            }
+
             if (TryJumpIfUseful(world)) return;
 
             Brain.Tick(this, world, dt);
@@ -191,12 +198,31 @@ namespace NextBots.Runtime
             if (Audio == null || world == null) return;
 
             var listener = UI.UiResources.Viewer;
-            if (listener == null) { Audio.Tick(false, 0f, dt); return; }
+            if (listener == null) { Audio.Tick(0f, 0f, dt); return; }
 
             var ear = listener.position;
             var distance = Vector3.Distance(Center, ear);
-            var blocked = world.LineBlocked(Center, ear);
-            Audio.Tick(blocked, distance, dt);
+            Audio.Tick(HiddenFraction(world, ear), distance, dt);
+        }
+
+        /// <summary>
+        /// How much of the bot a wall hides from <paramref name="ear"/>: five lines across its
+        /// body, counted. One line flipped by any post, branch or railing it grazed, which made
+        /// the muffle jump on and off at the slightest thing.
+        /// </summary>
+        private float HiddenFraction(WorldView world, Vector3 ear)
+        {
+            var toEar = ear - Center;
+            toEar.y = 0f;
+            var side = toEar.sqrMagnitude > 0.01f ? Vector3.Cross(Vector3.up, toEar.normalized) : Vector3.right;
+            float r = 0.4f;
+            int hidden = 0;
+            if (world.LineBlocked(Center, ear)) hidden++;
+            if (world.LineBlocked(Center + side * r, ear)) hidden++;
+            if (world.LineBlocked(Center - side * r, ear)) hidden++;
+            if (world.LineBlocked(Center + Vector3.up * r, ear)) hidden++;
+            if (world.LineBlocked(Center - Vector3.up * r * 0.6f, ear)) hidden++;
+            return hidden <= 1 ? 0f : (hidden - 1) / 4f;
         }
 
         /// <summary>
@@ -424,6 +450,12 @@ namespace NextBots.Runtime
             //    pursuit rather than a recovery - waiting to be "stuck" first looks hesitant.
             if (haveTarget && _cfg.FallEnabled && TryStepOffLedge(target.Position)) return true;
 
+            // At the end of the route with the target still out of reach - usually right below
+            // someone on a ledge. Standing there until the jump cooldown or the stuck timer
+            // runs out is the pause before the leap; go straight for it instead.
+            bool deadEnd = haveTarget && AtRouteEnd(target);
+            if (deadEnd) _air.AllowJumpBy(_lastLandedAt + 0.25f);
+
             // 3. The target is above us. Source calls this ClimbUpToLedge and treats it as a
             //    separate capability from jumping gaps - without it a bot just mills about
             //    underneath someone standing on a crate, which is exactly what ours did.
@@ -445,14 +477,33 @@ namespace NextBots.Runtime
             }
 
             // 6. Wedged. Only once the bot has genuinely failed to move for a while, so a
-            //    normal chase never turns into hopping.
-            if (!_cfg.JumpEnabled || Brain == null || Brain.StuckTime < _cfg.StuckChargeTime) return false;
-            if (!haveTarget) return false;
+            //    normal chase never turns into hopping - or at once at a dead end, above.
+            if (!_cfg.JumpEnabled || Brain == null || !haveTarget) return false;
+            if (!deadEnd && Brain.StuckTime < _cfg.StuckChargeTime) return false;
 
             var landing = FindLandingToward(target.Position);
             if (!landing.HasValue) return false;
 
             return _air.TryJump(landing.Value, _cfg, Time.time);
+        }
+
+        /// <summary>
+        /// Arrived as far as walking goes, target close but not caught, and no complete walking
+        /// route to them.
+        /// </summary>
+        private bool AtRouteEnd(NextBots.Brain.PlayerSnapshot target)
+        {
+            if (Agent == null || !Agent.isOnNavMesh || Agent.pathPending) return false;
+            if (Agent.hasPath && Agent.remainingDistance > 0.4f) return false;
+
+            var flat = target.Position - transform.position;
+            flat.y = 0f;
+            if (flat.magnitude > 8f) return false;
+
+            if (Agent.CalculatePath(target.Position, _pathScratch) &&
+                _pathScratch.status == NavMeshPathStatus.PathComplete)
+                return false;
+            return true;
         }
 
         /// <summary>
