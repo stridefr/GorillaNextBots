@@ -81,8 +81,8 @@ namespace GorillaRagdoll.Runtime
         private readonly List<Entry> _moved = new List<Entry>(8);
         private readonly List<LayerFix> _layerFixed = new List<LayerFix>(16);
 
-        /// <summary>Renderers of items that rode the headset, hidden from your own eye camera only
-        /// while a first-person mode is showing it.</summary>
+        /// <summary>Everything on the head (the face and every head or face cosmetic), hidden from a
+        /// camera only while it is in a first-person view - the headset or the monitor's own.</summary>
         private readonly List<Renderer> _hideFromEye = new List<Renderer>(4);
 
         /// <summary>The one instance there ever is, for the static rendering hook to reach.</summary>
@@ -268,10 +268,22 @@ namespace GorillaRagdoll.Runtime
                 if (ridesHeadset) _hideFromEye.AddRange(t.GetComponentsInChildren<Renderer>(true));
             }
 
+            // Everything on the head - the face, and every hat, pair of glasses or mask now riding
+            // it - is what a first-person camera sits inside. In normal play none of it reaches
+            // your own view (the face is mirror-only, head cosmetics stay at the edge of vision), so
+            // a first-person camera does not see it here either.
+            var head = RigBones.Find(rig.transform, RagdollPlan.Head);
+            if (head != null)
+            {
+                var listed = new HashSet<Renderer>(_hideFromEye);
+                foreach (var r in head.GetComponentsInChildren<Renderer>(true))
+                    if (r != null && listed.Add(r)) _hideFromEye.Add(r);
+            }
+
             if (_moved.Count > 0 || _switchedOn.Count > 0)
                 Plugin.Log.LogInfo("[Cosmetics] re-anchored " + _moved.Count + " stray item(s) onto the rig" +
                                    (_layerFixed.Count > 0 ? ", " + _layerFixed.Count + " node(s) moved off FirstPersonOnly so the monitor and kill cam can see them" : "") +
-                                   (_hideFromEye.Count > 0 ? ", " + _hideFromEye.Count + " renderer(s) hidden from your own eye in first person" : ""));
+                                   (_hideFromEye.Count > 0 ? ", " + _hideFromEye.Count + " head renderer(s) hidden from first-person views" : ""));
         }
 
         private static string Fmt(Vector3 v) => "(" + v.x.ToString("0.###") + ", " + v.y.ToString("0.###") + ", " + v.z.ToString("0.###") + ")";
@@ -390,7 +402,7 @@ namespace GorillaRagdoll.Runtime
                 if (a != null)
                     foreach (var sw in a._switchedOn)
                         if (sw.Node != null && !sw.Node.activeSelf) sw.Node.SetActive(true);
-                if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam) || !WantsHiddenFromEye()) return;
+                if (a == null || a._hideFromEye.Count == 0 || !IsFirstPersonCamera(cam)) return;
                 foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = true;
             }
             catch (Exception ex) { LogHookFault(ex); }
@@ -401,7 +413,7 @@ namespace GorillaRagdoll.Runtime
             try
             {
                 var a = _active;
-                if (a == null || a._hideFromEye.Count == 0 || !a.IsEyeCamera(cam)) return;
+                if (a == null || a._hideFromEye.Count == 0 || !IsFirstPersonCamera(cam)) return;
                 foreach (var r in a._hideFromEye) if (r != null) r.forceRenderingOff = false;
             }
             catch (Exception ex) { LogHookFault(ex); }
@@ -416,19 +428,20 @@ namespace GorillaRagdoll.Runtime
                                   "hook sharing the same event: " + ex);
         }
 
-        private bool IsEyeCamera(Camera cam)
+        /// <summary>A camera that is sitting inside the head right now: the headset in a first-person
+        /// VR view, or the monitor's own camera in a first-person monitor view. Third person, the kill
+        /// cam and everyone else's cameras still see the head and everything on it.</summary>
+        private static bool IsFirstPersonCamera(Camera cam)
         {
             if (cam == null) return false;
             var p = GTPlayer.Instance;
-            return p != null && cam == p.mainCamera;
+            if (p != null && cam == p.mainCamera) return IsFirstPerson(RagdollConfig.VrMode.Value);
+            var ctrl = Plugin.Controller;
+            var mon = ctrl != null && ctrl.Monitor != null ? ctrl.Monitor.Cam : null;
+            return mon != null && cam == mon && IsFirstPerson(RagdollConfig.MonitorMode.Value);
         }
 
-        /// <summary>Only while a first-person mode is actually showing the eye where the item now
-        /// sits - not in third person, where the whole point of re-anchoring is to be seen.</summary>
-        private static bool WantsHiddenFromEye()
-        {
-            var mode = RagdollConfig.VrMode.Value;
-            return mode == CameraMode.FirstPersonUnlocked || mode == CameraMode.FirstPersonLocked;
-        }
+        private static bool IsFirstPerson(CameraMode mode) =>
+            mode == CameraMode.FirstPersonUnlocked || mode == CameraMode.FirstPersonLocked;
     }
 }

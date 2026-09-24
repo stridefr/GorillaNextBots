@@ -315,18 +315,20 @@ namespace GorillaRagdoll.UI
                           "the body, W/S raise/lower, scroll zooms, C (or middle mouse) looks back " +
                           "at the body.", Wrapped());
                     Slider(RagdollConfig.MonitorOrbitKeySpeed, "Circle speed (A/D, W/S)", "0");
-                    GUILayout.Space(4f);
-                    Bool(RagdollConfig.AutoOrbit, "Auto orbit for filming (" + RagdollConfig.AutoOrbitKey.Value + " toggles)");
-                    if (RagdollConfig.AutoOrbit.Value)
-                    {
-                        Slider(RagdollConfig.AutoOrbitSpeed, "Auto orbit speed (deg/s)", "0");
-                        Slider(RagdollConfig.AutoOrbitSway, "Drift and breathing", "0.00");
-                        Slider(RagdollConfig.AutoOrbitResume, "Resumes after (s)", "0.0");
-                    }
                 }
                 else
                     GUILayout.Label("Always aimed at the body: hold RIGHT MOUSE to swing around it, " +
                                     "scroll to zoom.", Wrapped());
+
+                // The auto orbit runs whichever way the orbit is aimed, so its settings do too.
+                GUILayout.Space(4f);
+                Bool(RagdollConfig.AutoOrbit, "Auto orbit (" + RagdollConfig.AutoOrbitKey.Value + " toggles)");
+                if (RagdollConfig.AutoOrbit.Value)
+                {
+                    Slider(RagdollConfig.AutoOrbitSpeed, "Auto orbit speed (deg/s, minus = other way)", "0");
+                    Slider(RagdollConfig.AutoOrbitSway, "Drift and breathing", "0.00");
+                    Slider(RagdollConfig.AutoOrbitResume, "Resumes after (s)", "0.0");
+                }
             }
             if (RagdollConfig.MonitorMode.Value == CameraMode.ThirdPersonFly)
                 GUILayout.Label("WASD + QE to fly, hold RIGHT MOUSE to look, shift/ctrl for " +
