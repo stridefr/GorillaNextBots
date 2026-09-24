@@ -16,7 +16,7 @@ namespace NextBots.UI
     /// <para><b>Two outputs, drawn separately.</b> In the headset, each row is real geometry -
     /// a text mesh, the bot's own image on a quad, an optional box - hung off the eye camera
     /// in the corner you pick, so it stays in that corner of your view. On the monitor it is
-    /// drawn with IMGUI in the same corner of the screen. Neither is a picture of the other,
+    /// a screen overlay in the same corner, drawn with the same text engine. Neither is a picture of the other,
     /// so each can be sized for its own screen.</para>
     ///
     /// <para><b>Only the headset sees the headset copy.</b> Anything hung in front of your
@@ -80,6 +80,10 @@ namespace NextBots.UI
             /// new catch pushes the list along instead of teleporting it.</summary>
             public float MonY;
             public bool MonPlaced;
+            public RectTransform Mon;
+            public CanvasGroup MonGroup;
+            public UnityEngine.UI.RawImage MonIcon;
+            public float MonW, MonH;
             public readonly List<TextMeshPro> Texts = new List<TextMeshPro>(8);
             public readonly List<Color> TextColors = new List<Color>(8);
             public readonly List<Material> Mats = new List<Material>(4);
@@ -102,7 +106,6 @@ namespace NextBots.UI
         /// than the font size says.</summary>
         private float _lineOverEm = 1.2f;
         private FontStyles _fontStyle = FontStyles.Normal;
-        private Font _guiFont;
         private readonly List<Renderer> _vrRenderers = new List<Renderer>(32);
 
         // ================================================================== lifecycle
@@ -123,6 +126,9 @@ namespace NextBots.UI
             ClearAll();
             if (_vrRoot != null) Destroy(_vrRoot.gameObject);
             _vrRoot = null;
+            if (_monCanvas != null) Destroy(_monCanvas.gameObject);
+            _monCanvas = null;
+            _monRoot = null;
         }
 
         // ================================================================== entries
@@ -192,6 +198,7 @@ namespace NextBots.UI
 
         private void LateUpdate()
         {
+            UpdateMonitor();
             if (_entries.Count == 0 || !_style.showInVr) return;
             if (!EnsureVrRoot()) return;
 
@@ -272,15 +279,21 @@ namespace NextBots.UI
         }
 
         /// <summary>A GIF bot moves in the log as it does in the designer, not stuck on its first frame.</summary>
-        private static void AnimateIcon(Entry e)
+        private static int CurrentFrame(Entry e)
         {
-            if (e.Frames == null || e.IconMat == null) return;
             float total = 0f;
             for (int i = 0; i < e.Frames.Length; i++) total += FrameDelay(e, i);
-            if (total <= 0f) return;
+            if (total <= 0f) return 0;
             float t = (Time.time - e.Born) % total;
             int f = 0;
             while (f < e.Frames.Length - 1 && t >= FrameDelay(e, f)) { t -= FrameDelay(e, f); f++; }
+            return f;
+        }
+
+        private static void AnimateIcon(Entry e)
+        {
+            if (e.Frames == null || e.IconMat == null) return;
+            int f = CurrentFrame(e);
             if (f == e.Frame || e.Frames[f] == null) return;
             e.Frame = f;
             e.IconMat.mainTexture = e.Frames[f];
@@ -383,9 +396,13 @@ namespace NextBots.UI
             Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;
             if (frame.a > 0.001f)
             {
-                float b = th * 0.12f;
-                Track(e, Quad(content, "border", centre + new Vector3(0f, 0f, 0.003f),
-                              new Vector2(e.Width + 2f * b, e.Height + 2f * b), frame, null, QueueBorder), frame);
+                // A ring round the box, not a filled rectangle behind it: behind a see-through box a
+                // filled one shows through and turns the box grey.
+                float b = th * 0.12f, w = e.Width, h = e.Height;
+                Edge(e, content, centre + new Vector3(0f, h * 0.5f + b * 0.5f, 0f), new Vector2(w + 2f * b, b), frame);
+                Edge(e, content, centre + new Vector3(0f, -h * 0.5f - b * 0.5f, 0f), new Vector2(w + 2f * b, b), frame);
+                Edge(e, content, centre + new Vector3(-w * 0.5f - b * 0.5f, 0f, 0f), new Vector2(b, h), frame);
+                Edge(e, content, centre + new Vector3(w * 0.5f + b * 0.5f, 0f, 0f), new Vector2(b, h), frame);
             }
             var bg = _style.Background;
             if (bg.a > 0.001f)
@@ -396,6 +413,9 @@ namespace NextBots.UI
             _vrRenderers.AddRange(row.GetComponentsInChildren<Renderer>(true));
             e.AppliedAlpha = -1f;
         }
+
+        private void Edge(Entry e, Transform content, Vector3 pos, Vector2 size, Color c) =>
+            Track(e, Quad(content, "border", pos + new Vector3(0f, 0f, 0.003f), size, c, null, QueueBorder), c);
 
         /// <summary>Adds a line of text starting at <paramref name="x"/>; returns where it ends.</summary>
         private float AddText(Entry e, Transform parent, string text, Color color, float height, float x)
@@ -514,6 +534,11 @@ namespace NextBots.UI
             if (e.Row != null) Destroy(e.Row.gameObject);
             e.Row = null;
             e.Placed = false;
+            if (e.Mon != null) Destroy(e.Mon.gameObject);
+            e.Mon = null;
+            e.MonGroup = null;
+            e.MonIcon = null;
+            e.MonPlaced = false;
         }
 
         private void ClearAll()
@@ -608,116 +633,204 @@ namespace NextBots.UI
 
         // ================================================================== monitor
 
-        private GUIStyle _label;
-        private int _labelSize = -1;
-        private int _monitorFrame = -1;
+        private Canvas _monCanvas;
+        private RectTransform _monRoot;
+        private TMP_FontAsset _monFont;
+        private float _monLineOverEm = 1.2f;
+        private FontStyles _monFontStyle = FontStyles.Normal;
 
-        private void OnGUI()
+        /// <summary>
+        /// The monitor copy is a screen overlay drawn with the same text engine as the headset, so
+        /// it takes any font the headset can - IMGUI cannot draw CFF-based OpenType fonts such as
+        /// Coolvetica at all - and treats colours and see-through boxes the same way. An overlay
+        /// canvas goes to the desktop window only, never into the headset. It is laid out on a
+        /// 1920-wide screen and scaled to the real one, the same reference the designer previews on.
+        /// </summary>
+        private void EnsureMonitorCanvas()
         {
-            if (!_style.showOnMonitor || _entries.Count == 0 || Event.current.type != EventType.Repaint) return;
+            if (_monCanvas != null) return;
+            var go = new GameObject("NextBots.KillFeed.Monitor", typeof(RectTransform));
+            DontDestroyOnLoad(go);
+            _monCanvas = go.AddComponent<Canvas>();
+            _monCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _monCanvas.sortingOrder = 30000;
+            var scaler = go.AddComponent<UnityEngine.UI.CanvasScaler>();
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0f;
+            _monRoot = (RectTransform)go.transform;
+        }
 
-            if (_label == null || _labelSize != _style.monitorTextSize)
+        private void UpdateMonitor()
+        {
+            if (!_style.showOnMonitor || _entries.Count == 0)
             {
-                _label = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = _style.monitorTextSize,
-                    alignment = TextAnchor.MiddleLeft,
-                    richText = false,
-                    wordWrap = false,
-                    clipping = TextClipping.Overflow,
-                    padding = new RectOffset(0, 0, 0, 0),
-                    margin = new RectOffset(0, 0, 0, 0),
-                    font = _guiFont,
-                    fontStyle = _style.bold ? FontStyle.Bold : FontStyle.Normal
-                };
-                _labelSize = _style.monitorTextSize;
+                if (_monCanvas != null && _monCanvas.enabled) _monCanvas.enabled = false;
+                return;
             }
+            EnsureMonitorCanvas();
+            if (!_monCanvas.enabled) _monCanvas.enabled = true;
 
-            float th = _label.CalcSize(new GUIContent("Hg")).y;
-            float pad = _style.padding * th;
-            float gap = th * 0.3f;
+            float th = _style.monitorTextSize * 1.15f;
             float spacing = _style.spacing * th;
-            float margin = _style.monitorMargin;
-            float marginY = _style.MarginY;
-            float offset = 0f;
-            var saved = GUI.color;
-
-            // IMGUI can repaint more than once in a frame, and moving the rows on every repaint
-            // would run the slide at a speed that depends on how many repaints there were. So the
-            // positions advance once per frame, and any further repaint draws them where they are.
-            bool step = Time.frameCount != _monitorFrame;
-            _monitorFrame = Time.frameCount;
+            float mx = _style.monitorMargin, my = _style.MarginY;
             float k = 1f - Mathf.Exp(-12f * Time.deltaTime);
+            string anim = (_style.animation ?? "").ToLowerInvariant();
+            float offset = 0f;
 
             foreach (var e in _entries)
             {
+                if (e.Mon == null) BuildMonitorRow(e);
+                if (e.Mon == null) continue;
+
                 float age = Time.time - e.Born;
                 float arrive = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(age / ArriveTime));
                 float alpha = Fade(age) * Leave(e);
-                string anim = (_style.animation ?? "").ToLowerInvariant();
                 if (anim == "fade" || anim == "pop") alpha *= arrive;
+                float slide = anim == "slide" ? (1f - arrive) * (e.MonW + mx) : 0f;
+                float scale = anim == "pop" ? Mathf.Lerp(1.35f, 1f, arrive) : 1f;
 
-                bool showIcon = _style.ShowIcon && e.Icon != null;
-                float iconH = showIcon ? th * _style.iconSize : 0f;
-                float iconW = iconH * e.IconAspect;
-                float killerW = _label.CalcSize(new GUIContent(e.Killer)).x;
-                float verbW = string.IsNullOrEmpty(e.Verb) ? 0f : _label.CalcSize(new GUIContent(e.Verb)).x;
-                float victimW = _label.CalcSize(new GUIContent(e.Victim)).x;
-
-                float w = pad + killerW + gap + (showIcon ? iconW + gap : 0f) + (verbW > 0f ? verbW + gap : 0f) + victimW + pad;
-                float h = Mathf.Max(th, iconH) + 2f * pad;
-                float slide = anim == "slide" ? (1f - arrive) * (w + margin) : 0f;
-
-                // Older rows glide to their new place; a row being drawn for the first time
-                // starts where it belongs rather than sliding in from the top of the list.
+                // Older rows glide to their new place; a new row starts where it belongs.
                 if (!e.MonPlaced) { e.MonY = offset; e.MonPlaced = true; }
-                else if (step) e.MonY = Mathf.Lerp(e.MonY, offset, k);
+                else e.MonY = Mathf.Lerp(e.MonY, offset, k);
+                offset += e.MonH + spacing;
 
-                float x = _style.Right ? Screen.width - margin - w + slide : margin - slide;
-                float y = _style.Top ? marginY + e.MonY : Screen.height - marginY - e.MonY - h;
-                offset += h + spacing;
+                e.Mon.anchoredPosition = new Vector2(_style.Right ? -mx + slide : mx - slide,
+                                                     _style.Top ? -(my + e.MonY) : my + e.MonY);
+                e.Mon.localScale = Vector3.one * scale;
+                e.MonGroup.alpha = alpha;
 
-                Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;
-                if (frame.a > 0.001f) Fill(new Rect(x - 2f, y - 2f, w + 4f, h + 4f), frame, alpha);
-                if (_style.Background.a > 0.001f) Fill(new Rect(x, y, w, h), _style.Background, alpha);
-
-                float cx = x + pad, cy = y + h * 0.5f;
-                cx = Text(e.Killer, cx, cy, killerW, th, _style.KillerColor, alpha) + gap;
-                if (showIcon)
+                if (e.MonIcon != null && e.Frames != null)
                 {
-                    GUI.color = new Color(1f, 1f, 1f, alpha);
-                    GUI.DrawTexture(new Rect(cx, cy - iconH * 0.5f, iconW, iconH), e.Icon, ScaleMode.ScaleToFit);
-                    cx += iconW + gap;
+                    var f = e.Frames[CurrentFrame(e)];
+                    if (f != null && e.MonIcon.texture != f) e.MonIcon.texture = f;
                 }
-                if (verbW > 0f) cx = Text(e.Verb, cx, cy, verbW, th, Color.white, alpha) + gap;
-                Text(e.Victim, cx, cy, victimW, th, _style.VictimColor, alpha);
             }
-
-            GUI.color = saved;
         }
 
-        private float Text(string s, float x, float cy, float w, float th, Color color, float alpha)
+        /// <summary>One monitor row, laid out as the designer lays it out: padding and gaps from the
+        /// line (1.15 x the text size), the icon sized off the line too, and the row as tall as the
+        /// taller of the text and the icon.</summary>
+        private void BuildMonitorRow(Entry e)
         {
-            var r = new Rect(x, cy - th * 0.5f, w + 2f, th);
+            EnsureMonitorCanvas();
+
+            float size = _style.monitorTextSize;
+            float th = size * 1.15f;
+            float pad = _style.padding * th;
+            float gap = th * 0.35f;
+            bool showIcon = _style.ShowIcon && e.Icon != null;
+            float iconH = showIcon ? th * _style.iconSize : 0f;
+            float iconW = iconH * e.IconAspect;
+
+            var go = new GameObject("row", typeof(RectTransform), typeof(CanvasGroup));
+            var row = (RectTransform)go.transform;
+            row.SetParent(_monRoot, false);
+            var corner = new Vector2(_style.Right ? 1f : 0f, _style.Top ? 1f : 0f);
+            row.anchorMin = row.anchorMax = row.pivot = corner;
+            e.Mon = row;
+            e.MonGroup = go.GetComponent<CanvasGroup>();
+            e.MonGroup.blocksRaycasts = false;
+            e.MonGroup.interactable = false;
+
+            // Box and outline first, so everything else draws on top of them.
+            var box = MonRect(row, "box", _style.Background);
+            Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;
+            RectTransform[] edges = null;
+            if (frame.a > 0.001f)
+                edges = new[] { MonRect(row, "top", frame), MonRect(row, "bottom", frame),
+                                MonRect(row, "left", frame), MonRect(row, "right", frame) };
+
+            float x = pad;
+            x = MonText(row, e.Killer, _style.KillerColor, size, x) + gap;
+            if (showIcon)
+            {
+                var rt = UiChild(row, "icon");
+                var ri = rt.gameObject.AddComponent<UnityEngine.UI.RawImage>();
+                ri.texture = e.Icon;
+                ri.raycastTarget = false;
+                Place(rt, x, 0f, iconW, iconH);
+                e.MonIcon = ri;
+                x += iconW + gap;
+            }
+            if (!string.IsNullOrEmpty(e.Verb)) x = MonText(row, e.Verb, Color.white, size, x) + gap;
+            x = MonText(row, e.Victim, _style.VictimColor, size, x) + pad;
+
+            float h = Mathf.Max(size * _monLineOverEm, iconH) + 2f * pad;
+            e.MonW = x;
+            e.MonH = h;
+            row.sizeDelta = new Vector2(x, h);
+            Place(box, 0f, 0f, x, h);
+
+            if (edges != null)
+            {
+                // A ring outside the box, as the designer's outline is - never a filled rectangle
+                // behind it, which showed through a see-through box and turned it grey.
+                const float b = 2f;
+                Place(edges[0], -b, h * 0.5f + b * 0.5f, x + 2f * b, b);
+                Place(edges[1], -b, -h * 0.5f - b * 0.5f, x + 2f * b, b);
+                Place(edges[2], -b, 0f, b, h);
+                Place(edges[3], x, 0f, b, h);
+            }
+        }
+
+        private float MonText(RectTransform row, string text, Color color, float size, float x)
+        {
+            if (string.IsNullOrEmpty(text)) return x;
             if (_style.textShadow)
             {
-                GUI.color = new Color(1f, 1f, 1f, alpha * 0.85f);
-                _label.normal.textColor = Color.black;
-                GUI.Label(new Rect(r.x + 1.5f, r.y + 1.5f, r.width, r.height), s, _label);
+                var sh = NewMonText(row, text, new Color(0f, 0f, 0f, 0.85f), size);
+                var p = sh.GetPreferredValues(text);
+                Place(sh.rectTransform, x + size * 0.075f, -size * 0.075f, p.x, Mathf.Max(p.y, size));
             }
-            GUI.color = new Color(1f, 1f, 1f, alpha);
-            _label.normal.textColor = color;
-            GUI.Label(r, s, _label);
-            return x + w;
+            var t = NewMonText(row, text, color, size);
+            var pref = t.GetPreferredValues(text);
+            Place(t.rectTransform, x, 0f, pref.x, Mathf.Max(pref.y, size));
+            return x + pref.x;
         }
 
-        private static void Fill(Rect r, Color c, float alpha)
+        private TextMeshProUGUI NewMonText(RectTransform row, string text, Color color, float size)
         {
-            // A tinted texture on the monitor takes its tint as a linear value in this linear-space
-            // game, unlike its text, so a picked dark box came out a light, flat grey. Convert it.
-            if (QualitySettings.activeColorSpace == ColorSpace.Linear) c = c.linear;
-            GUI.color = new Color(c.r, c.g, c.b, c.a * alpha);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            var rt = UiChild(row, "text");
+            var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            var font = _monFont != null ? _monFont : UiResources.GameTmpFont;
+            if (font != null) t.font = font;
+            t.fontSize = size;
+            t.fontStyle = _monFontStyle;
+            t.richText = false;
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.overflowMode = TextOverflowModes.Overflow;
+            t.alignment = TextAlignmentOptions.MidlineLeft;
+            t.raycastTarget = false;
+            t.text = text;
+            t.color = color;
+            return t;
+        }
+
+        private static RectTransform MonRect(RectTransform row, string name, Color color)
+        {
+            var rt = UiChild(row, name);
+            var img = rt.gameObject.AddComponent<UnityEngine.UI.Image>();
+            img.color = color;
+            img.raycastTarget = false;
+            img.enabled = color.a > 0.001f;
+            return rt;
+        }
+
+        /// <summary>A child placed from the row's left edge, vertically centred.</summary>
+        private static RectTransform UiChild(Transform parent, string name)
+        {
+            var rt = (RectTransform)new GameObject(name, typeof(RectTransform)).transform;
+            rt.SetParent(parent, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            return rt;
+        }
+
+        private static void Place(RectTransform rt, float left, float centreY, float w, float h)
+        {
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(left, centreY);
         }
 
         // ================================================================== style file
@@ -730,7 +843,19 @@ namespace NextBots.UI
             _lineOverEm = ModFonts.LineOverEm(_font != null ? _font : UiResources.GameTmpFont);
             // Only fake bold when there was no real bold face to use.
             _fontStyle = _style.bold && !trueBold ? FontStyles.Bold : FontStyles.Normal;
-            _guiFont = ModFonts.Monitor(string.IsNullOrEmpty(_style.monitorFont) ? _style.font : _style.monitorFont);
+            if (string.IsNullOrEmpty(_style.monitorFont) ||
+                string.Equals(_style.monitorFont, _style.font, StringComparison.OrdinalIgnoreCase))
+            {
+                _monFont = _font;
+                _monFontStyle = _fontStyle;
+            }
+            else
+            {
+                bool monBold;
+                _monFont = ModFonts.Headset(_style.monitorFont, _style.bold, out monBold);
+                _monFontStyle = _style.bold && !monBold ? FontStyles.Bold : FontStyles.Normal;
+            }
+            _monLineOverEm = ModFonts.LineOverEm(_monFont != null ? _monFont : UiResources.GameTmpFont);
         }
 
         /// <summary>
@@ -764,7 +889,6 @@ namespace NextBots.UI
                 _style = style;
                 Current = style;
                 ResolveFonts();
-                _label = null;
                 RebuildRows();
                 Plugin.Log.LogInfo("[KillFeed] style '" + style.preset + "' | " + style.Corner +
                                    (style.showInVr ? " | headset" : "") + (style.showOnMonitor ? " | monitor" : ""));

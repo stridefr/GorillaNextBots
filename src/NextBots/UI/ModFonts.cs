@@ -80,7 +80,6 @@ namespace NextBots.UI
         }
 
         private static readonly Dictionary<string, Built> Headsets = new Dictionary<string, Built>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, Font> Monitors = new Dictionary<string, Font>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<TMP_FontAsset, float> LineHeights = new Dictionary<TMP_FontAsset, float>();
 
         private static string WindowsFonts
@@ -192,62 +191,6 @@ namespace NextBots.UI
             Headsets[key] = new Built { Font = font, TrueBold = realBold };
             trueBold = realBold;
             return font != null ? font : fallback;
-        }
-
-        /// <summary>
-        /// The monitor font for a family; null means IMGUI's own.
-        ///
-        /// <para><b>Only fonts Windows has installed for every user.</b> IMGUI can only reach a
-        /// font through the operating system's list, and asking it for one that is not on that
-        /// list - a font installed "for me only", which is where a font installed from the
-        /// preview window ends up - does not fail. It hands back a font with no letters in it,
-        /// which then draws whatever else happens to be in the shared glyph texture: another
-        /// mod's on-screen text, in the middle of our rows. So a family Unity cannot see is
-        /// refused here and the monitor copy uses the default font, which always draws what it
-        /// is asked to.</para>
-        /// </summary>
-        public static Font Monitor(string family)
-        {
-            family = (family ?? "").Trim();
-            if (family.Length == 0) return null;
-
-            Font font;
-            if (Monitors.TryGetValue(family, out font)) return font;
-
-            string match = null;
-            try
-            {
-                foreach (var n in Font.GetOSInstalledFontNames())
-                {
-                    if (string.Equals(n, family, StringComparison.OrdinalIgnoreCase)) { match = n; break; }
-                    if (match == null && n.StartsWith(family, StringComparison.OrdinalIgnoreCase)) match = n;
-                }
-            }
-            catch { /* no list: treat it as one we cannot see */ }
-
-            if (match == null)
-            {
-                // Installed for you only, so Windows' list does not have it - but the file is on disk,
-                // and a Font built from the file itself has every letter in it.
-                font = MonitorFromFile(family);
-                if (font == null)
-                    Plugin.Log.LogWarning("[Fonts] no font called '" + family + "' found for the monitor copy, " +
-                                          "so it uses the default font.");
-                Monitors[family] = font;
-                return font;
-            }
-
-            try
-            {
-                font = Font.CreateDynamicFontFromOSFont(match, 32);
-                // Built at runtime and referenced by nothing Unity tracks: without this, a level
-                // load can unload its glyph texture under us, which draws as garbage.
-                if (font != null) font.hideFlags = HideFlags.DontUnloadUnusedAsset;
-            }
-            catch (Exception ex) { Plugin.Log.LogWarning("[Fonts] monitor font '" + family + "': " + ex.Message); }
-
-            Monitors[family] = font;
-            return font;
         }
 
         /// <summary>A line of text's height over the font size, from the font's own metrics, so text
