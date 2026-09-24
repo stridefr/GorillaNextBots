@@ -223,13 +223,10 @@ Other players only hear your ragdoll if they have sounds in their own folders to
 
 ## Fixed since the last release
 
-- **The death log's colours never matched what you picked.** This game renders in Linear colour
-  space, and a hex code you pick (`#RRGGBB`) is an sRGB value - handed straight to a material or a
-  `TextMeshPro.color` without converting, it comes out visibly lighter and more washed out than
-  the one you chose, for every colour except pure black and pure white. The box, the outline, the
-  bot-name and player-name colours in the headset copy are now corrected before they reach
-  anything on screen. The monitor copy (drawn with `OnGUI`) was never affected - only the headset
-  rows were showing this.
+- **The death log in the headset now matches the designer.** Text is sized by its font size, as
+  the designer does it, instead of by its full line height, which made it smaller than the preview
+  next to the same-size bot image. Colours go in exactly as picked; an earlier change converted them
+  for the game's colour space a second time and darkened them. GIF bots animate in the log.
 - **First person had a lag your real eyes don't have**, because the ragdoll's camera-follow
   smoothing was applying to it same as a third-person camera chasing a body from outside. Both
   first-person modes now place the eye instantly, with none of `CameraSmoothing`'s lag.

@@ -248,6 +248,19 @@ namespace NextBots.UI
             return font;
         }
 
+        /// <summary>A line of text's height over the font size, from the font's own metrics, so text
+        /// can be sized by its font size the way a web page is.</summary>
+        public static float LineOverEm(TMP_FontAsset font)
+        {
+            try
+            {
+                if (font != null && font.faceInfo.pointSize > 0 && font.faceInfo.lineHeight > 0f)
+                    return Mathf.Clamp(font.faceInfo.lineHeight / font.faceInfo.pointSize, 0.8f, 2f);
+            }
+            catch { /* fall through */ }
+            return 1.2f;
+        }
+
         /// <summary>
         /// World height of one line at font size 1, measured for this font. Fonts differ a lot -
         /// Impact is tall and tight, Segoe Script is loose - so text heights have to be measured

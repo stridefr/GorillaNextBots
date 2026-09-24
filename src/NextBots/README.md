@@ -194,17 +194,11 @@ Things that cost a debugging cycle each, recorded so they are not rediscovered:
   against the loaded font asset.
 - **A narrow NavMesh bake layer mask collects almost nothing.** Driving `NavMeshBuilder`
   directly and counting sources is what made this diagnosable.
-- **This game renders in Linear colour space, and nothing converts a picked hex colour for you.**
-  `ColorUtility.TryParseHtmlString("#FF5A4A", ...)` gives you the sRGB value your monitor would
-  show for that code - handed straight to `Material.SetColor`/`TextMeshPro.color`, the shader
-  treats it as a *linear* intensity instead, which for anything other than pure black or pure
-  white comes out visibly lighter and more washed out than what was picked (a saturated colour
-  reads pale; a near-black background reads mid-grey). `QualitySettings.activeColorSpace` says
-  which project you're in; `Color.linear` does the conversion. It has to happen once, right where
-  a picked colour is about to be handed to a renderer - [`KillFeed.cs`](UI/KillFeed.cs) does it in
-  `AddText` and at the box/border build site, through `UiResources.Picked`. `OnGUI` (the monitor
-  copy) is a different, older pipeline that already shows a picked colour correctly and must
-  **not** be converted a second time.
+- **This game renders in Linear colour space, and Unity already converts picked colours for it.**
+  `Material.SetColor` treats a colour property as sRGB and converts it, and the game's TextMeshPro
+  converts its vertex colours too (`m_ConvertToLinearSpace`). So a hex code from
+  `ColorUtility.TryParseHtmlString` goes in as it is. Converting it again with `Color.linear` darkens
+  and oversaturates it - the death log shipped that way for a while.
 
 ### Known constraints to design around
 

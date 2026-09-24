@@ -57,6 +57,10 @@ namespace NextBots.UI
             public string Killer, Verb, Victim;
             public Texture2D Icon;
             public float IconAspect = 1f;
+            public Texture2D[] Frames;
+            public float[] FrameDelays;
+            public Material IconMat;
+            public int Frame;
             public bool Mine;
             public float Born;
 
@@ -92,6 +96,10 @@ namespace NextBots.UI
         // has to be faked, and the monitor's font (null = IMGUI's own).
         private TMP_FontAsset _font;
         private float _fontLine = 0.1f;
+
+        /// <summary>The font's line height over its size (its em): how much taller a line of text is
+        /// than the font size says.</summary>
+        private float _lineOverEm = 1.2f;
         private FontStyles _fontStyle = FontStyles.Normal;
         private Font _guiFont;
         private readonly List<Renderer> _vrRenderers = new List<Renderer>(32);
@@ -130,6 +138,8 @@ namespace NextBots.UI
                 Victim = Case(string.IsNullOrEmpty(info.VictimName) ? "?" : info.VictimName),
                 Icon = skin != null ? skin.Texture : null,
                 IconAspect = skin != null ? Mathf.Clamp(skin.AspectWidthOverHeight, 0.3f, 3f) : 1f,
+                Frames = skin != null && skin.Animated ? skin.Frames : null,
+                FrameDelays = skin != null ? skin.FrameDelays : null,
                 Mine = info.VictimIsLocal,
                 Born = Time.time
             };
@@ -214,8 +224,28 @@ namespace NextBots.UI
                 e.Row.localPosition = new Vector3(x, y, 0f);
                 e.Row.localScale = Vector3.one * scale;
                 ApplyAlpha(e, alpha);
+                AnimateIcon(e);
             }
         }
+
+        /// <summary>A GIF bot moves in the log as it does in the designer, not stuck on its first frame.</summary>
+        private static void AnimateIcon(Entry e)
+        {
+            if (e.Frames == null || e.IconMat == null) return;
+            float total = 0f;
+            for (int i = 0; i < e.Frames.Length; i++) total += FrameDelay(e, i);
+            if (total <= 0f) return;
+            float t = (Time.time - e.Born) % total;
+            int f = 0;
+            while (f < e.Frames.Length - 1 && t >= FrameDelay(e, f)) { t -= FrameDelay(e, f); f++; }
+            if (f == e.Frame || e.Frames[f] == null) return;
+            e.Frame = f;
+            e.IconMat.mainTexture = e.Frames[f];
+            if (e.IconMat.HasProperty("_BaseMap")) e.IconMat.SetTexture("_BaseMap", e.Frames[f]);
+        }
+
+        private static float FrameDelay(Entry e, int i) =>
+            e.FrameDelays != null && i < e.FrameDelays.Length && e.FrameDelays[i] > 0.01f ? e.FrameDelays[i] : 0.1f;
 
         /// <summary>How long a row pushed past the limit takes to fade: the style's fade-out,
         /// but never so short it reads as a pop.</summary>
@@ -288,6 +318,8 @@ namespace NextBots.UI
                 var icon = Quad(content, "icon", new Vector3(x + iconW * 0.5f, 0f, 0f), new Vector2(iconW, iconH),
                                 Color.white, e.Icon, QueueIcon);
                 Track(e, icon, Color.white);
+                e.IconMat = icon.sharedMaterial;
+                e.Frame = 0;
                 x += iconW + gap;
             }
             if (!string.IsNullOrEmpty(e.Verb))
@@ -295,22 +327,24 @@ namespace NextBots.UI
             x = AddText(e, content, e.Victim, _style.VictimColor, th, x) + pad;
 
             e.Width = x;
-            e.Height = Mathf.Max(th, iconH) + 2f * pad;
+            e.Height = Mathf.Max(th * _lineOverEm, iconH) + 2f * pad;
 
             // Right corners: the row ends at the corner. Top corners: it hangs below it.
             content.localPosition = new Vector3(_style.Right ? -e.Width : 0f,
                                                 (_style.Top ? -1f : 1f) * e.Height * 0.5f, 0f);
 
             Vector3 centre = new Vector3(e.Width * 0.5f, 0f, 0f);
-            // Same correction as the text colours: box/border/highlight are picked hex codes too.
-            Color frame = UiResources.Picked(e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border);
+            // Picked hex codes go in as they are: Unity already converts material colours for the
+            // linear colour space, and TextMeshPro its vertex colours, so converting here as well
+            // darkened every colour past what was picked.
+            Color frame = e.Mine && _style.LocalHighlight.a > 0.001f ? _style.LocalHighlight : _style.Border;
             if (frame.a > 0.001f)
             {
                 float b = th * 0.12f;
                 Track(e, Quad(content, "border", centre + new Vector3(0f, 0f, 0.003f),
                               new Vector2(e.Width + 2f * b, e.Height + 2f * b), frame, null, QueueBorder), frame);
             }
-            var bg = UiResources.Picked(_style.Background);
+            var bg = _style.Background;
             if (bg.a > 0.001f)
                 Track(e, Quad(content, "box", centre + new Vector3(0f, 0f, 0.002f),
                               new Vector2(e.Width, e.Height), bg, null, QueueBox), bg);
@@ -326,13 +360,11 @@ namespace NextBots.UI
             var font = _font != null ? _font : UiResources.GameTmpFont;
             if (font == null || string.IsNullOrEmpty(text)) return x;
 
-            // killerColor/victimColor are hex codes someone picked to look a certain way; correct
-            // once here so both the first paint and every later alpha-fade reapplication (which
-            // reads the same tracked colour back) show what was actually picked.
-            color = UiResources.Picked(color);
-
+            // The text height setting is the font size, as in the designer (CSS font-size), not the
+            // full line: sizing the line to it made every font smaller than the preview by its own
+            // line spacing - a quarter or so for most fonts.
             float line = _font != null ? _fontLine : UiResources.TmpLineHeightAtSizeOne;
-            float scale = height / Mathf.Max(0.0001f, line);
+            float scale = height * _lineOverEm / Mathf.Max(0.0001f, line);
 
             if (_style.textShadow)
             {
@@ -649,6 +681,7 @@ namespace NextBots.UI
             bool trueBold;
             _font = ModFonts.Headset(_style.font, _style.bold, out trueBold);
             _fontLine = ModFonts.LineHeightAtSizeOne(_font);
+            _lineOverEm = ModFonts.LineOverEm(_font != null ? _font : UiResources.GameTmpFont);
             // Only fake bold when there was no real bold face to use.
             _fontStyle = _style.bold && !trueBold ? FontStyles.Bold : FontStyles.Normal;
             _guiFont = ModFonts.Monitor(string.IsNullOrEmpty(_style.monitorFont) ? _style.font : _style.monitorFont);
