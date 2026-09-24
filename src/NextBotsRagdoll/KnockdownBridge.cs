@@ -235,6 +235,12 @@ namespace NextBotsRagdoll
         /// <summary>The Effects tab's button: the same as pressing the test key.</summary>
         public void RunTest() => TestCatch();
 
+        private static NextBots.Runtime.BotSkins.Skin AnyBotSkin()
+        {
+            var all = NextBots.Runtime.BotSkins.All;
+            return all != null && all.Count > 0 ? all[UnityEngine.Random.Range(0, all.Count)] : null;
+        }
+
         private void TestCatch()
         {
             var ctrl = GorillaRagdoll.Plugin.Controller;
@@ -259,14 +265,18 @@ namespace NextBotsRagdoll
 
             // Through NextBots' real catch path: the death log, the sounds and the knockdown all
             // see exactly what a real catch would give them.
+            // With no bot spawned, borrow one of your bot images so the death log shows a real row,
+            // the way the designer previews it, rather than a nameless line with no picture.
+            var stand = bot == null ? AnyBotSkin() : null;
+
             int actor = LocalActor();
             var info = new CatchInfo
             {
                 VictimActor = actor,
                 VictimName = PlayerNames.Of(actor),
                 BotNetId = bot != null ? bot.NetId : -1,
-                BotSkin = bot != null ? bot.SkinName : "",
-                BotName = bot != null ? bot.DisplayName : "TEST",
+                BotSkin = bot != null ? bot.SkinName : stand != null ? stand.Name : "",
+                BotName = bot != null ? bot.DisplayName : stand != null ? stand.DisplayName : "TEST",
                 BotPosition = from,
                 BotVelocity = vel,
                 VictimPosition = me,

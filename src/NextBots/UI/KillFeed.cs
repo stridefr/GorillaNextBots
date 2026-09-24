@@ -145,6 +145,11 @@ namespace NextBots.UI
             };
 
             _entries.Insert(0, e);
+            Plugin.Log.LogInfo("[KillFeed] row '" + e.Killer + "' | image " +
+                               (e.Icon != null ? "'" + info.BotSkin + "' " + e.Icon.width + "x" + e.Icon.height +
+                                                 (e.Frames != null ? " animated" : "")
+                                               : "none (no bot image named '" + info.BotSkin + "')") +
+                               (_style.ShowIcon ? "" : " | icons off in killfeed.json"));
 
             // Past the limit, the oldest rows fade out as they are pushed down, rather than
             // vanishing the instant a new one arrives. They still take their place in the stack
