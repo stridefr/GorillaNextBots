@@ -25,7 +25,10 @@ namespace NextBotsRagdoll
         private const float Settle = 0.3f;
 
         /// <summary>Per part, not per body: one landing is one puff.</summary>
-        private const float PerBodyGap = 0.35f;
+        private const float PerBodyGap = 0.6f;
+
+        /// <summary>How much harder than your own landings another player's has to be to throw dust.</summary>
+        private const float OthersScale = 1.75f;
 
         private sealed class Part
         {
@@ -110,10 +113,12 @@ namespace NextBotsRagdoll
             p.Peak = Mathf.Max(p.Peak * Mathf.Exp(-dt / 0.35f), -vel.y);
 
             if (b.Since < Settle || Time.time - b.LastPuff < PerBodyGap) return;
-            if (p.Peak < BridgeConfig.DustMinSpeed.Value) return;
+            // A higher bar than your own body's: a remote body's speed is read from smoothed poses,
+            // which makes every small bump look like a drop, so only a real landing counts.
+            if (p.Peak < BridgeConfig.DustMinSpeed.Value * OthersScale) return;
 
             // Most of that fall gone, next to the floor: it landed.
-            if (vel.magnitude > p.Peak * 0.3f) return;
+            if (vel.magnitude > p.Peak * 0.25f) return;
             if (!NearFloor(pos)) return;
 
             float speed = p.Peak;
