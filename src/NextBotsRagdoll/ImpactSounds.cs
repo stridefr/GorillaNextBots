@@ -328,7 +328,9 @@ namespace NextBotsRagdoll
         public void OnEvent(EventData e)
         {
             if (e.Code != EvImpact) return;
-            if (!WantsOthersSound && !WantsOthersDust) return;
+            // Only the sound comes from here now: other players' dust is made from their ragdoll as it
+            // is shown on this screen (RemoteDust), so it lines up with the body and never doubles.
+            if (!WantsOthersSound) return;
 
             var payload = e.CustomData as byte[];
             if (payload == null || payload.Length < ImpactBytes) return;
@@ -375,14 +377,12 @@ namespace NextBotsRagdoll
                 if (now < p.At && p.At - now < 2.0) continue;
                 _pending.RemoveAt(i);
                 if (WantsOthersSound) PlayImpact(p.Position, p.Speed);
-                if (WantsOthersDust && Dust.Instance != null) Dust.Instance.Puff(p.Position, p.Speed);
             }
         }
 
         private static bool Finite(float f) => !float.IsNaN(f) && !float.IsInfinity(f);
 
         private static bool WantsOthersSound => BridgeConfig.SoundsEnabled.Value && BridgeConfig.HearOthers.Value;
-        private static bool WantsOthersDust => BridgeConfig.DustEnabled.Value && BridgeConfig.DustForOthers.Value;
 
         /// <summary>The bot connecting. Deeper and harder for heavier bots, via the profile.</summary>
         public void OnBotHit(Vector3 position, BotProfile profile, bool dust = true)

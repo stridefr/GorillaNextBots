@@ -66,6 +66,9 @@ namespace GorillaRagdoll.Net
         public static bool HookInstalled;
 
         public static int RemoteCount => Remotes.Count;
+
+        /// <summary>Other players' ragdolls as this client is showing them right now.</summary>
+        public static IEnumerable<RemoteRagdoll> All => Remotes.Values;
         public bool Sending { get; private set; }
 
         private float _sendAccum;
