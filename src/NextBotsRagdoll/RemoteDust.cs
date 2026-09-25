@@ -17,7 +17,7 @@ namespace NextBotsRagdoll
     /// </summary>
     public sealed class RemoteDust : MonoBehaviour
     {
-        /// <summary>A part must be moving at least this fast (m/s) the frame before it stops.</summary>
+        /// <summary>Faster than this (m/s) in one frame is a pose jump, not a fall.</summary>
         private const float MaxBelievable = 40f;
 
         /// <summary>No dust from a body for this long after it goes down: its first frames jump
@@ -30,8 +30,13 @@ namespace NextBotsRagdoll
         private sealed class Part
         {
             public Vector3 Last;
-            public Vector3 Vel;
             public bool Has;
+
+            /// <summary>The fastest this part has been coming down lately, fading over a few tenths
+            /// of a second. A remote body is smoothed between the poses it is sent, so a landing does
+            /// not stop in one frame here - it stops over several. Comparing against a recent peak,
+            /// not the frame before, is what catches it.</summary>
+            public float Peak;
         }
 
         private sealed class Body
@@ -98,21 +103,21 @@ namespace NextBotsRagdoll
 
             var vel = (pos - p.Last) / dt;
             p.Last = pos;
-            var before = p.Vel;
-            // A little smoothing: remote poses arrive in steps, and a single uneven step is not a landing.
-            p.Vel = Vector3.Lerp(p.Vel, vel, 0.6f);
+
+            // A jump no body makes is a pose reset or a teleport, not a fall.
+            if (vel.magnitude > MaxBelievable) { p.Peak = 0f; return; }
+
+            p.Peak = Mathf.Max(p.Peak * Mathf.Exp(-dt / 0.35f), -vel.y);
 
             if (b.Since < Settle || Time.time - b.LastPuff < PerBodyGap) return;
+            if (p.Peak < BridgeConfig.DustMinSpeed.Value) return;
 
-            float speed = before.magnitude;
-            if (speed < BridgeConfig.DustMinSpeed.Value || speed > MaxBelievable) return;
-
-            // Coming down, and most of that speed gone this frame: it hit something.
-            if (before.y > -1f) return;
-            if (p.Vel.magnitude > speed * 0.45f) return;
-
+            // Most of that fall gone, next to the floor: it landed.
+            if (vel.magnitude > p.Peak * 0.3f) return;
             if (!NearFloor(pos)) return;
 
+            float speed = p.Peak;
+            p.Peak = 0f;
             b.LastPuff = Time.time;
             Dust.Instance.Puff(pos, speed);
             if (_logged < 5)
