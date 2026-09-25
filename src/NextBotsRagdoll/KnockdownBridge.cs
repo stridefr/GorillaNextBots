@@ -150,17 +150,26 @@ namespace NextBotsRagdoll
             down.Down = true;
             down.CaughtAt = Time.time;
 
-            var sounds = ImpactSounds.Instance;
-            if (sounds == null || !BridgeConfig.HearOthers.Value) return;
+            // Heard and seen are separate choices: someone with other players' sounds off still sees
+            // the dust fly where a bot hit them, and the other way round.
+            bool heard = BridgeConfig.HearOthers.Value;
+            bool seen = BridgeConfig.DustEnabled.Value && BridgeConfig.DustForOthers.Value;
+            if (!heard && !seen) return;
 
             Vector3 at;
             if (!PlayerNames.TryGetPosition(info.VictimActor, out at)) at = info.VictimPosition;
             var profile = BotProfiles.Get(info.BotSkin);
-            if (HitBeat.Instance != null) HitBeat.Instance.Fire(at, profile, info.Death, false, 0f);
-            else
+            var sounds = ImpactSounds.Instance;
+            if (HitBeat.Instance != null) HitBeat.Instance.Fire(at, profile, info.Death, false, 0f, heard, seen);
+            else if (sounds != null)
             {
-                sounds.OnBotHit(at, profile);
-                if (WantsDeathSound(info.Death)) sounds.PlayDeath(at);
+                if (heard)
+                {
+                    sounds.OnBotHit(at, profile, dust: seen);
+                    if (WantsDeathSound(info.Death)) sounds.PlayDeath(at);
+                }
+                else if (Dust.Instance != null)
+                    Dust.Instance.Puff(at, BridgeConfig.HardSpeed.Value * 1.3f * (profile != null ? profile.Scale : 1f), 2.2f);
             }
         }
 

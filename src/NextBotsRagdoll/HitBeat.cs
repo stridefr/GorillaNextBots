@@ -115,12 +115,13 @@ namespace NextBotsRagdoll
         /// <i>your</i> senses. Someone else's hit is still seen and heard, in the world, on the same
         /// timeline.
         /// </summary>
-        public void Fire(Vector3 at, BotProfile profile, bool killed, bool mine, float dazePower)
+        public void Fire(Vector3 at, BotProfile profile, bool killed, bool mine, float dazePower,
+                         bool heard = true, bool seen = true)
         {
             var sounds = ImpactSounds.Instance;
 
             // ---- heard: now
-            if (sounds != null)
+            if (sounds != null && heard)
             {
                 sounds.OnBotHit(at, profile, dust: false);
                 if (KnockdownBridge.WantsDeathSound(killed))
@@ -133,7 +134,7 @@ namespace NextBotsRagdoll
             After(VisualDelay(), () =>
             {
                 if (mine && DeathVignette.Instance != null) DeathVignette.Instance.Begin();
-                if (Dust.Instance != null)
+                if (seen && Dust.Instance != null)
                     Dust.Instance.Puff(at, BridgeConfig.HardSpeed.Value * 1.3f * scale, 2.2f);
             });
         }
