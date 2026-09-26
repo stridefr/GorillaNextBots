@@ -156,9 +156,7 @@ With **GHOSTS** on, a player with no lives left is a ghost: the bots ignore them
 lives on, or changing the count, starts everyone over. In a room the host runs it and everyone
 sees the same hearts.
 
-If you have Minecraft (1.20.2 or newer) installed, the hearts are Minecraft's own, read from
-your copy of the game - none of its files ship with this mod. To use your own pictures instead,
-put a `full.png` and an `empty.png` in `BepInEx\plugins\NextBots\hearts`.
+The hearts are Minecraft's own, and come with the mod.
 
 ### Death log
 

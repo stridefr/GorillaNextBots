@@ -299,7 +299,12 @@ namespace NextBots.UI
             public string Path, Family, Style;
         }
 
-        private static List<Face> _userFaces, _windowsFaces;
+        private static List<Face> _userFaces, _windowsFaces, _bundledFaces;
+
+        /// <summary>Fonts that came with the mod, in its own plugin folder: usable without
+        /// installing them in Windows.</summary>
+        private static string BundledFonts =>
+            Path.Combine(BepInEx.Paths.PluginPath, Path.Combine("NextBots", "fonts"));
 
         /// <summary>
         /// A font file whose family matches, from the player's own fonts folder first and then
@@ -309,6 +314,10 @@ namespace NextBots.UI
         private static string FindInstalled(string family, bool bold, out bool isBold)
         {
             isBold = false;
+            if (_bundledFaces == null) _bundledFaces = Scan(BundledFonts);
+            var mine = Best(_bundledFaces, family, bold, out isBold);
+            if (mine != null) return mine;
+
             if (_userFaces == null) _userFaces = Scan(UserFonts);
             var hit = Best(_userFaces, family, bold, out isBold);
             if (hit != null) return hit;

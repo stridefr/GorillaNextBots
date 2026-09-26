@@ -25,7 +25,7 @@ namespace NextBotsRagdoll
     {
         public const string Guid = "com.stridefr.nextbotsragdoll";
         public const string Name = "NextBotsRagdoll";
-        public const string Version = "0.12.2";
+        public const string Version = "0.13.0";
 
         public static ManualLogSource Log { get; private set; }
 
@@ -34,6 +34,8 @@ namespace NextBotsRagdoll
         private void Awake()
         {
             Log = Logger;
+            GorillaNextBots.Shared.AssetBundle.Unpack(typeof(Plugin).Assembly,
+                System.IO.Path.Combine(BepInEx.Paths.PluginPath, "NextBotsRagdoll"), m => Log.LogInfo(m));
             BridgeConfig.Bind(Config);
 
             _host = new GameObject("NextBotsRagdoll.Host");

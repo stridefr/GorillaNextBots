@@ -9,7 +9,7 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.33.1</Version>
+    <Version>0.34.0</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -80,6 +80,17 @@
     <Reference Include="UnityEngine.TextCoreFontEngineModule"><HintPath>$(ManagedDir)\UnityEngine.TextCoreFontEngineModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.XR.CoreUtils"><HintPath>$(ManagedDir)\Unity.XR.CoreUtils.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ZString"><HintPath>$(ManagedDir)\ZString.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <!-- Files carried inside the DLL and unpacked at start-up (see src/Shared/AssetBundle.cs),
+       taken from this machine's own game folder at build time: hearts, fonts, death log and panel
+       styles. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\AssetBundle.cs" Link="Shared\AssetBundle.cs" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\hearts\*.png" LogicalName="bundle/hearts/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\fonts\*.otf;$(BepInExDir)\plugins\NextBots\fonts\*.ttf" LogicalName="bundle/fonts/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\killfeed.json" Condition="Exists('$(BepInExDir)\plugins\NextBots\killfeed.json')" LogicalName="bundle/killfeed.json" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\panel.json" Condition="Exists('$(BepInExDir)\plugins\NextBots\panel.json')" LogicalName="bundle/panel.json" />
   </ItemGroup>
 
   <!-- Copy straight into the game's plugin folder on build -->

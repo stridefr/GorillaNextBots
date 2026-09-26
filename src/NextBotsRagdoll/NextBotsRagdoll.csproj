@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <Version>0.12.2</Version>
+    <Version>0.13.0</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -79,6 +79,15 @@
   <!-- The shader, compiled to an AssetBundle with the game's own Unity version: see Shaders/README.md -->
   <ItemGroup>
     <EmbeddedResource Include="Shaders\nextbots.saturation" LogicalName="nextbots.saturation" />
+  </ItemGroup>
+
+  <!-- Files carried inside the DLL and unpacked at start-up (see src/Shared/AssetBundle.cs),
+       taken from this machine's own game folder at build time: sounds, dust look, bot weights. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\AssetBundle.cs" Link="Shared\AssetBundle.cs" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBotsRagdoll\sounds\**\*.wav" LogicalName="bundle/sounds/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBotsRagdoll\bots\*.json" LogicalName="bundle/bots/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBotsRagdoll\dust.json" Condition="Exists('$(BepInExDir)\plugins\NextBotsRagdoll\dust.json')" LogicalName="bundle/dust.json" />
   </ItemGroup>
 
 </Project>
