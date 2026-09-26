@@ -9,7 +9,7 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.35.0</Version>
+    <Version>0.35.1</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -87,6 +87,8 @@
        styles. -->
   <ItemGroup>
     <Compile Include="..\Shared\AssetBundle.cs" Link="Shared\AssetBundle.cs" />
+    <EmbeddedResource Include="..\..\defaults\com.stridefr.nextbots.cfg" Condition="Exists('..\..\defaults\com.stridefr.nextbots.cfg')" LogicalName="defaults/com.stridefr.nextbots.cfg" />
+    <EmbeddedResource Include="..\..\defaults\com.stridefr.nextbots.settings.txt" Condition="Exists('..\..\defaults\com.stridefr.nextbots.settings.txt')" LogicalName="defaults/com.stridefr.nextbots.settings.txt" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\hearts\*.png" LogicalName="bundle/hearts/%(Filename)%(Extension)" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\fonts\*.otf;$(BepInExDir)\plugins\NextBots\fonts\*.ttf" LogicalName="bundle/fonts/%(Filename)%(Extension)" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\killfeed.json" Condition="Exists('$(BepInExDir)\plugins\NextBots\killfeed.json')" LogicalName="bundle/killfeed.json" />

@@ -23,7 +23,7 @@ namespace GorillaRagdoll
     {
         public const string Guid = "com.stridefr.gorillaragdoll";
         public const string Name = "GorillaRagdoll";
-        public const string Version = "0.6.2";
+        public const string Version = "0.6.3";
 
         public static ManualLogSource Log { get; private set; }
         public static RagdollController Controller { get; private set; }
@@ -33,6 +33,9 @@ namespace GorillaRagdoll
         private void Awake()
         {
             Log = Logger;
+            if (GorillaNextBots.Shared.AssetBundle.InstallDefaults(typeof(Plugin).Assembly, BepInEx.Paths.ConfigPath,
+                    m => Log.LogInfo(m)) > 0)
+                base.Config.Reload();
             RagdollConfig.Bind(base.Config);
             // BepInEx loads plugin DLLs once, at process start. Copying a new build over the
             // top of a running game changes nothing until it is restarted - so stamp the build

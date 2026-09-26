@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <Version>0.13.0</Version>
+    <Version>0.13.1</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -85,6 +85,7 @@
        taken from this machine's own game folder at build time: sounds, dust look, bot weights. -->
   <ItemGroup>
     <Compile Include="..\Shared\AssetBundle.cs" Link="Shared\AssetBundle.cs" />
+    <EmbeddedResource Include="..\..\defaults\com.stridefr.nextbotsragdoll.cfg" Condition="Exists('..\..\defaults\com.stridefr.nextbotsragdoll.cfg')" LogicalName="defaults/com.stridefr.nextbotsragdoll.cfg" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBotsRagdoll\sounds\**\*.wav" LogicalName="bundle/sounds/%(RecursiveDir)%(Filename)%(Extension)" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBotsRagdoll\bots\*.json" LogicalName="bundle/bots/%(Filename)%(Extension)" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBotsRagdoll\dust.json" Condition="Exists('$(BepInExDir)\plugins\NextBotsRagdoll\dust.json')" LogicalName="bundle/dust.json" />

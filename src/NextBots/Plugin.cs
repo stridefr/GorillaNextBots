@@ -26,7 +26,7 @@ namespace NextBots
     {
         public const string Guid = "com.stridefr.nextbots";
         public const string Name = "NextBots";
-        public const string Version = "0.35.0";
+        public const string Version = "0.35.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -53,6 +53,9 @@ namespace NextBots
             Log = Logger;
             GorillaNextBots.Shared.AssetBundle.Unpack(typeof(Plugin).Assembly,
                 System.IO.Path.Combine(Paths.PluginPath, "NextBots"), m => Log.LogInfo(m));
+            if (GorillaNextBots.Shared.AssetBundle.InstallDefaults(typeof(Plugin).Assembly, Paths.ConfigPath,
+                    m => Log.LogInfo(m)) > 0)
+                Config.Reload();
             NextBots.Config.NextBotSettings.Active.Load();
 
             CfgMenuButton = Config.Bind("Input", "MenuButton", "LeftSecondary",

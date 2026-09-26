@@ -7,8 +7,8 @@ using UnityEngine.Rendering;
 namespace NextBots.UI
 {
     /// <summary>
-    /// A message across your own view when you lose a life: how many are left, or - at none, with
-    /// ghosts on - that you are a ghost now. It fades in, holds, and fades out, in the headset (hung
+    /// A message across your own view when you lose your last life with ghosts on: you are a
+    /// ghost now. It fades in, holds, and fades out, in the headset (hung
     /// in front of your eyes, seen by nothing else) and on the monitor (a screen overlay).
     /// </summary>
     public sealed class LivesNotice : MonoBehaviour
@@ -16,7 +16,6 @@ namespace NextBots.UI
         private const float FadeIn = 0.25f, Hold = 2.2f, FadeOut = 1.6f;
         private const float Distance = 1.3f, Height = 0.09f;
 
-        private static readonly Color Red = new Color(0.95f, 0.22f, 0.25f);
         private static readonly Color Pale = new Color(0.85f, 0.9f, 1f);
 
         private int _lastLeft = -1;
@@ -53,8 +52,8 @@ namespace NextBots.UI
             }
 
             int left = Lives.Of(me);
-            // Only a drop is news: a new round refilling the hearts is not.
-            if (_lastActive && _lastLeft >= 0 && left < _lastLeft) Show(left);
+            // Only becoming a ghost is announced; a lost life is shown by the hearts alone.
+            if (_lastActive && _lastLeft > 0 && left <= 0 && Lives.GhostsOn) Show();
             _lastActive = true;
             _lastLeft = left;
 
@@ -77,28 +76,11 @@ namespace NextBots.UI
             _vr.localRotation = Quaternion.identity;
         }
 
-        private void Show(int left)
+        private void Show()
         {
-            string main, sub;
-            Color colour;
-            if (left <= 0 && Lives.GhostsOn)
-            {
-                main = "YOU'RE A GHOST";
-                sub = "THE BOTS CAN'T SEE YOU NOW";
-                colour = Pale;
-            }
-            else if (left <= 0)
-            {
-                main = "OUT OF LIVES";
-                sub = "";
-                colour = Red;
-            }
-            else
-            {
-                main = "LIFE LOST";
-                sub = left + (left == 1 ? " LIFE LEFT" : " LIVES LEFT");
-                colour = Red;
-            }
+            const string main = "YOU'RE A GHOST NOW";
+            const string sub = "THE BOTS CAN'T SEE YOU";
+            var colour = Pale;
 
             Build();
             _vrMain.text = main; _vrSub.text = sub;
