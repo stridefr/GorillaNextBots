@@ -9,7 +9,7 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.34.0</Version>
+    <Version>0.35.0</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>

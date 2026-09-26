@@ -26,7 +26,7 @@ namespace NextBots
     {
         public const string Guid = "com.stridefr.nextbots";
         public const string Name = "NextBots";
-        public const string Version = "0.34.0";
+        public const string Version = "0.35.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -183,6 +183,7 @@ namespace NextBots
             var lives = _host.AddComponent<Lives>();
             lives.Net = net;
             _host.AddComponent<LivesDisplay>();
+            _host.AddComponent<LivesNotice>();
 
             if (CfgDesktopConsole.Value)
             {
