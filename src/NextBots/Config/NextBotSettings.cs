@@ -297,6 +297,15 @@ namespace NextBots.Config
         /// <summary>Off: every bot stands where it is and cannot catch anyone, until switched back on.</summary>
         public bool BotsMove = true;
 
+        /// <summary>Lives: each real bot catch costs one; at zero a player can be left alone.</summary>
+        public bool LivesEnabled = false;
+
+        /// <summary>Lives each player starts with. Changing it starts everyone over at the new number.</summary>
+        public int LifeCount = 3;
+
+        /// <summary>With lives on, a player with none left is a ghost: the bots ignore them.</summary>
+        public bool Ghosts = true;
+
         // ---- sound ------------------------------------------------------------
         /// <summary>Play the per-skin chase loop.</summary>
         public bool SoundEnabled = true;
@@ -475,10 +484,20 @@ namespace NextBots.Config
                 new TunableBool("debug", "DEBUG OVERLAY", "DEBUG",
                     () => DebugOverlay, v => DebugOverlay = v),
 
-                // Last, so the lobby sync's index order is unchanged for older builds; the list
-                // wraps, so it is one press of UP from the top.
+                // Last, so the lobby sync's index order is unchanged for older builds. The panel
+                // shows it on its own CONTROL page.
                 new TunableBool("move", "BOTS MOVE", "CONTROL",
                     () => BotsMove, v => BotsMove = v),
+
+                // Lives, after everything older for the same index-order reason.
+                new TunableBool("lives", "LIVES", "LIVES",
+                    () => LivesEnabled, v => LivesEnabled = v),
+
+                new TunableInt("lifecount", "LIFE COUNT", "LIVES",
+                    () => LifeCount, v => LifeCount = v, 1, 10),
+
+                new TunableBool("ghosts", "GHOSTS", "LIVES",
+                    () => Ghosts, v => Ghosts = v),
             };
         }
 

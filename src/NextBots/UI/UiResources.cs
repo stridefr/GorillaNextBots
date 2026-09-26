@@ -275,6 +275,40 @@ namespace NextBots.UI
             return mat;
         }
 
+        /// <summary>
+        /// A material that blends by the texture's own alpha, so a half-see-through pixel draws half
+        /// see-through - not solid, the way the opaque unlit one draws it.
+        /// </summary>
+        public static Material NewSeeThroughMaterial(Texture tex, int queue = 3000)
+        {
+            Shader shader = null;
+            foreach (var name in new[] { "Sprites/Default", "UI/Default", "Universal Render Pipeline/Unlit" })
+            {
+                try { shader = Shader.Find(name); } catch { /* next */ }
+                if (shader != null) break;
+            }
+            if (shader == null) shader = Unlit;
+
+            var m = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            if (shader != null && shader.name == "Universal Render Pipeline/Unlit")
+            {
+                m.SetFloat("_Surface", 1f);
+                m.SetFloat("_Blend", 0f);
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                m.SetInt("_ZWrite", 0);
+                m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            }
+            if (tex != null)
+            {
+                m.mainTexture = tex;
+                if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
+            }
+            m.renderQueue = queue;
+            TrySetColor(m, Color.white);
+            return m;
+        }
+
         public static void TrySetColor(Material mat, Color color)
         {
             if (mat == null) return;

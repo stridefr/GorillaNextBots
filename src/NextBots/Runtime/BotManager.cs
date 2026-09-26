@@ -262,6 +262,7 @@ namespace NextBots.Runtime
             // Everyone hears about it - the death log and the sounds need that - and only the
             // victim's own client runs the effect, because nobody else can move their rig.
             var info = CatchEffects.Describe(bot, actorNumber);
+            Lives.OnKilled(actorNumber);
             if (Net != null) Net.SendCaught(info);
             CatchEffects.Dispatch(info);
         }

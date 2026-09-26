@@ -36,7 +36,14 @@ namespace NextBots.Runtime
                     new Vector3(0f, skin.Height * 0.5f, 0f), new Vector2(width, skin.Height),
                     Color.white, out mat);
                 _billboard = go.transform;
-                _material = mat;
+
+                // Blended by the image's own alpha, so a soft edge or a see-through part looks the
+                // way it does in the file instead of solid.
+                var mr = go.GetComponent<MeshRenderer>();
+                var blended = UiResources.NewSeeThroughMaterial(skin.Texture);
+                mr.sharedMaterial = blended;
+                Destroy(mat);
+                _material = blended;
             }
             else
             {

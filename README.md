@@ -147,6 +147,15 @@ When a bot gets within about a metre of you:
 - **The death log** shows it to the whole lobby: the bot's name (its image file name), its
   picture, and the player it caught.
 
+### Lives
+
+Turn on **LIVES** on the wrist panel's **LIVES** config page to play in rounds. Everyone starts
+with **LIFE COUNT** lives (1 to 10), and every catch by a bot costs one. Other ragdolls and the
+test key don't. Hearts float over each player's head, and over your own left wrist.
+With **GHOSTS** on, a player with no lives left is a ghost: the bots ignore them. Switching
+lives on, or changing the count, starts everyone over. In a room the host runs it and everyone
+sees the same hearts.
+
 ### Death log
 
 Every catch shows up in the corner of your headset view and of the monitor, Garry's Mod style:
@@ -198,8 +207,9 @@ Other players only hear your ragdoll if they have sounds in their own folders to
 
 ## Settings
 
-- **Bots:** the wrist panel's `TUNE` page. Speed, acceleration, ambushes, jumping, climbing,
-  catch range, sound and more. In a room, the host's settings apply to everyone.
+- **Bots:** the wrist panel's `CONFIG` page, split into sections (Movement, Pursuit, Ambush,
+  Jump, Audio, Lives and so on). `< PAGE` and `PAGE >` turn between them. Your changes are saved.
+  In a room, the host's settings apply to everyone.
 - **Ragdoll and cameras:** press **F4** on the monitor.
 - **Fonts:** the death log's is in `killfeed.json` (above). The wrist panel's is `Font` under
   `[UI]` in `com.stridefr.nextbots.cfg`, and the F4 menu's is `MenuFont` in

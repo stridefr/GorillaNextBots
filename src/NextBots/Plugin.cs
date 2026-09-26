@@ -26,7 +26,7 @@ namespace NextBots
     {
         public const string Guid = "com.stridefr.nextbots";
         public const string Name = "NextBots";
-        public const string Version = "0.32.1";
+        public const string Version = "0.33.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -178,6 +178,9 @@ namespace NextBots
 
             // The death log: every catch in the lobby, in the headset and on the monitor.
             _host.AddComponent<KillFeed>();
+            var lives = _host.AddComponent<Lives>();
+            lives.Net = net;
+            _host.AddComponent<LivesDisplay>();
 
             if (CfgDesktopConsole.Value)
             {

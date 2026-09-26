@@ -246,9 +246,15 @@ namespace NextBots.Debugging
             if (locked) GUILayout.Label("HOST CONTROLS SETTINGS (you are a guest)", _mono);
 
             var tunables = Settings.Tunables;
+            string group = null;
             for (int i = 0; i < tunables.Count; i++)
             {
                 var t = tunables[i];
+                if (t.Group != group)
+                {
+                    group = t.Group;
+                    GUILayout.Label("— " + group + " —", _mono);
+                }
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(t.Label, _mono, GUILayout.Width(150));
                 GUILayout.Label(t.Display, _mono, GUILayout.Width(80));

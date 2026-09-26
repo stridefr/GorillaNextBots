@@ -35,7 +35,60 @@ namespace NextBots.UI
         // ---- state ------------------------------------------------------------
         private Page _page = Page.Spawn;
         private int _spawnIndex;
+        /// <summary>Position within the current config section, not in the whole list.</summary>
         private int _configIndex;
+
+        /// <summary>Config is split into sections - one per settings group, in the order the groups
+        /// first appear - so a setting is found by its section instead of by scrolling the lot.</summary>
+        private int _section;
+        private List<string> _sectionNames;
+        private List<List<int>> _sectionItems;
+
+        private void EnsureSections()
+        {
+            if (_sectionItems != null) return;
+            _sectionNames = new List<string>();
+            _sectionItems = new List<List<int>>();
+            var t = Settings.Tunables;
+            for (int i = 0; i < t.Count; i++)
+            {
+                string g = string.IsNullOrEmpty(t[i].Group) ? "OTHER" : t[i].Group;
+                int at = _sectionNames.IndexOf(g);
+                if (at < 0) { _sectionNames.Add(g); _sectionItems.Add(new List<int>()); at = _sectionNames.Count - 1; }
+                _sectionItems[at].Add(i);
+            }
+        }
+
+        private List<int> SectionItems
+        {
+            get
+            {
+                EnsureSections();
+                if (_sectionItems.Count == 0) return new List<int>();
+                _section = Wrap(_section, _sectionItems.Count);
+                return _sectionItems[_section];
+            }
+        }
+
+        /// <summary>The tunable under the cursor on the config page.</summary>
+        private Tunable CurrentTunable
+        {
+            get
+            {
+                var items = SectionItems;
+                return items.Count == 0 ? null : Settings.Tunables[items[Wrap(_configIndex, items.Count)]];
+            }
+        }
+
+        private void ChangeSection(int dir)
+        {
+            EnsureSections();
+            if (_sectionItems.Count == 0) return;
+            _section = Wrap(_section + dir, _sectionItems.Count);
+            _configIndex = 0;
+            _scrollTop = 0;
+            Say(_sectionNames[_section], Layout.Accent);
+        }
         private int _scrollTop;
 
         /// <summary>
@@ -367,7 +420,7 @@ namespace NextBots.UI
         private int ItemCount =>
             _page == Page.Spawn
                 ? (Director != null && Director.SpawnTypes != null ? Director.SpawnTypes.Count : 0)
-                : Settings.Tunables.Count;
+                : SectionItems.Count;
 
         private int Index
         {
@@ -385,7 +438,7 @@ namespace NextBots.UI
 
             Say(_page == Page.Spawn
                     ? Director.SpawnTypes[Index]
-                    : Settings.Tunables[Index].Label,
+                    : CurrentTunable.Label,
                 Layout.Text);
         }
 
@@ -403,9 +456,9 @@ namespace NextBots.UI
 
             if (Net.BotNetwork.SettingsLocked) { Say("HOST CONTROLS SETTINGS", Layout.Warn); return; }
 
-            var t = Settings.Tunables;
-            if (t.Count == 0) return;
-            var r = t[Wrap(_configIndex, t.Count)].Adjust(dir, false);
+            var tun = CurrentTunable;
+            if (tun == null) return;
+            var r = tun.Adjust(dir, false);
             Say(r.Message, r.Changed ? Layout.Good : Layout.Warn);
             if (r.Changed) Settings.Save();
         }
@@ -420,7 +473,7 @@ namespace NextBots.UI
 
         private void DoAction()
         {
-            if (_page == Page.Config) { Say("USE - / + TO ADJUST", Layout.TextDim); return; }
+            if (_page == Page.Config) { ChangeSection(-1); return; }
 
             if (Director == null) { Say("NOT READY", Layout.Warn); return; }
             if (!Director.CanSpawn) { Say(Director.BlockedReason, Layout.Warn); return; }
@@ -491,6 +544,7 @@ namespace NextBots.UI
 
         private void DoClear()
         {
+            if (_page == Page.Config) { ChangeSection(+1); return; }
             if (Director == null) return;
             var n = Director.ClearAll();
             Say(n > 0 ? "CLEARED " + n : "NOTHING TO CLEAR", n > 0 ? Layout.Good : Layout.Warn);
@@ -512,7 +566,7 @@ namespace NextBots.UI
 
             _subtitle.Text = _page == Page.Spawn
                 ? "SPAWN  " + (n == 0 ? "0/0" : (Index + 1) + "/" + n)
-                : "CONFIG  " + (n == 0 ? "0/0" : (Index + 1) + "/" + n);
+                : SectionTitle();
 
             _title.Text = "NEXTBOTS   " + (Director != null ? Director.LiveCount.ToString() : "0") + " LIVE";
 
@@ -538,7 +592,7 @@ namespace NextBots.UI
                 }
                 else
                 {
-                    var tun = Settings.Tunables[idx];
+                    var tun = Settings.Tunables[SectionItems[idx]];
                     _rowText[i].Text = tun.Label;
                     _rowValue[i].Text = tun.Display;
                 }
@@ -550,9 +604,11 @@ namespace NextBots.UI
             _btnPage.Label = _page == Page.Spawn ? "CONFIG" : "SPAWN";
             SetBtnText(_btnPage, _btnPage.Label);
 
-            _btnAction.Enabled = _page == Page.Spawn && canSpawn;
-            _btnClear.Enabled = canSpawn;
-            SetBtnText(_btnAction, _page != Page.Spawn ? "--" : (_armed ? "CANCEL" : "SPAWN"));
+            // On the config page these two turn the section pages instead.
+            _btnAction.Enabled = _page == Page.Config || canSpawn;
+            _btnClear.Enabled = _page == Page.Config || canSpawn;
+            SetBtnText(_btnAction, _page != Page.Spawn ? "< PAGE" : (_armed ? "CANCEL" : "SPAWN"));
+            SetBtnText(_btnClear, _page != Page.Spawn ? "PAGE >" : "CLEAR");
 
             if (_page != Page.Spawn || !canSpawn) _armed = false;
             if (Aimer != null)
@@ -566,6 +622,14 @@ namespace NextBots.UI
             _status.Color = L.Warn;
 
             if (Time.time > _confirmUntil) _footer.Text = "";
+        }
+
+        private string SectionTitle()
+        {
+            EnsureSections();
+            if (_sectionNames.Count == 0) return "CONFIG";
+            _section = Wrap(_section, _sectionNames.Count);
+            return _sectionNames[_section] + "  " + (_section + 1) + "/" + _sectionNames.Count;
         }
 
         private void SetBtnText(PanelButton b, string text)

@@ -63,6 +63,7 @@ namespace NextBots.Runtime
 
                 var actor = ActorOf(rig);
                 if (actor < 0 || Excluded.Contains(actor)) continue;
+                if (Lives.IsGhost(actor)) continue;   // out of lives: the bots do not see them
 
                 var head = rig.headConstraint;
                 var root = rig.transform.position;
@@ -193,7 +194,7 @@ namespace NextBots.Runtime
             _history.Remove(actor);
         }
 
-        private static int ActorOf(VRRig rig)
+        public static int ActorOf(VRRig rig)
         {
             // VRRig.OwningNetPlayer is [Obsolete] "unreliable"; Creator is the supported path.
             var creator = rig.Creator;

@@ -34,6 +34,7 @@ namespace NextBots.Net
         public const byte EvSettings = 143;
         public const byte EvCaught = 144;
         public const byte EvSyncRequest = 145;
+        public const byte EvLives = 146;
 
         /// <summary>
         /// Wire format version. Bumped if the packet layout changes.
@@ -136,6 +137,7 @@ namespace NextBots.Net
                 _syncAt = -1f;
                 _masterActor = -1;
                 RestoreLocalSettings();
+                Runtime.Lives.Forget();
             }
             else if (inRoom)
             {
@@ -250,6 +252,25 @@ namespace NextBots.Net
                 w.Write(yaw);
             }
             Send(EvSpawn, _buffer.ToArray(), reliable: true);
+        }
+
+        /// <summary>The host's lives table, to everyone else.</summary>
+        public void SendLives(Action<BinaryWriter> write)
+        {
+            if (!PhotonNetwork.InRoom || !IsAuthority || write == null) return;
+            _buffer.SetLength(0);
+            using (var w = new BinaryWriter(_buffer, System.Text.Encoding.UTF8, true))
+            {
+                w.Write(Protocol);
+                write(w);
+            }
+            Send(EvLives, _buffer.ToArray(), reliable: true);
+        }
+
+        private void OnLives(BinaryReader r, int sender)
+        {
+            if (!SenderIsAuthority(sender) || IsAuthority) return;
+            Runtime.Lives.ReadFrom(r);
         }
 
         public void SendDespawn(int id)
@@ -405,7 +426,7 @@ namespace NextBots.Net
 
         public void OnEvent(EventData e)
         {
-            if (e.Code < EvSpawn || e.Code > EvSyncRequest) return;      // not ours
+            if (e.Code < EvSpawn || e.Code > EvLives) return;      // not ours
 
             var payload = e.CustomData as byte[];
             if (payload == null || payload.Length < 1) return;
@@ -425,6 +446,7 @@ namespace NextBots.Net
                         case EvSettings:  OnSettings(r, e.Sender); break;
                         case EvCaught:    OnCaught(r, e.Sender); break;
                         case EvSyncRequest: OnSyncRequest(e.Sender); break;
+                        case EvLives:     OnLives(r, e.Sender); break;
                     }
                 }
             }
@@ -530,6 +552,7 @@ namespace NextBots.Net
             if (!IsAuthority || Bots == null) return;
             Bots.ResendAll();
             SendSettings();
+            Runtime.Lives.ResendSoon();
             Plugin.Log.LogInfo("[Net] re-sent world state for actor " + sender + ".");
         }
 
