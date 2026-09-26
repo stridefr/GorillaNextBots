@@ -9,7 +9,7 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.36.0</Version>
+    <Version>0.36.1</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -22,22 +22,11 @@
     <BepInExDir>$(GameDir)\BepInEx</BepInExDir>
   </PropertyGroup>
 
-  <!-- Utilla's DLL turns up under more than one name depending on how it was installed. Take
-       the normal one if it is there, then the doubled-up name some installers leave behind.
-       Override with -p:UtillaDll=... if yours lives somewhere else. -->
-  <PropertyGroup>
-    <UtillaDll Condition="'$(UtillaDll)' == '' And Exists('$(BepInExDir)\plugins\Utilla\Utilla.dll')">$(BepInExDir)\plugins\Utilla\Utilla.dll</UtillaDll>
-    <UtillaDll Condition="'$(UtillaDll)' == '' And Exists('$(BepInExDir)\plugins\Utilla.dll')">$(BepInExDir)\plugins\Utilla.dll</UtillaDll>
-    <UtillaDll Condition="'$(UtillaDll)' == ''">$(BepInExDir)\plugins\Utilla\Utilla.dll.dll.dll.dll</UtillaDll>
-  </PropertyGroup>
-
   <ItemGroup>
     <!-- BepInEx -->
     <Reference Include="BepInEx"><HintPath>$(BepInExDir)\core\BepInEx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony"><HintPath>$(BepInExDir)\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
 
-    <!-- Utilla (modded-lobby gate) -->
-    <Reference Include="Utilla"><HintPath>$(UtillaDll)</HintPath><Private>false</Private></Reference>
 
     <!-- Game -->
     <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
@@ -91,6 +80,7 @@
     <Compile Include="..\Shared\FileFonts.cs" Link="Shared\FileFonts.cs" />
     <EmbeddedResource Include="..\..\defaults\com.stridefr.nextbots.cfg" Condition="Exists('..\..\defaults\com.stridefr.nextbots.cfg')" LogicalName="defaults/com.stridefr.nextbots.cfg" />
     <EmbeddedResource Include="..\..\defaults\com.stridefr.nextbots.settings.txt" Condition="Exists('..\..\defaults\com.stridefr.nextbots.settings.txt')" LogicalName="defaults/com.stridefr.nextbots.settings.txt" />
+    <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\skins\*.png;$(BepInExDir)\plugins\NextBots\skins\*.gif;$(BepInExDir)\plugins\NextBots\skins\*.jpg;$(BepInExDir)\plugins\NextBots\skins\*.jpeg;$(BepInExDir)\plugins\NextBots\skins\*.wav" LogicalName="bundle/skins/%(Filename)%(Extension)" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\hearts\*.png" LogicalName="bundle/hearts/%(Filename)%(Extension)" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\fonts\*.otf;$(BepInExDir)\plugins\NextBots\fonts\*.ttf" LogicalName="bundle/fonts/%(Filename)%(Extension)" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\killfeed.json" Condition="Exists('$(BepInExDir)\plugins\NextBots\killfeed.json')" LogicalName="bundle/killfeed.json" />

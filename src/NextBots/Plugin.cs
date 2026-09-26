@@ -15,18 +15,17 @@ namespace NextBots
     /// Venue policy lives in <see cref="Venue"/>, not here: the mod runs in a private
     /// (code-locked) room where you are the master client, and never in a public lobby.
     /// Utilla is an optional extra - its modded-lobby routing broke with a game update, so
-    /// nothing here depends on it working.
+    /// nothing here depends on it working. Nothing here even refers to it by type: a reference
+    /// compiled into this class made the whole mod fail to start on a PC without Utilla, so
+    /// its one event is hooked by name, at run time, only when Utilla is actually there.
     /// </summary>
     [BepInPlugin(Guid, Name, Version)]
     [BepInDependency("org.legoandmars.gorillatag.utilla", BepInDependency.DependencyFlags.SoftDependency)]
-    // Utilla only dispatches join/leave to plugins carrying this. Harmless when Utilla is
-    // broken - the hooks simply never fire, and nothing depends on them.
-    [Utilla.Attributes.ModdedGamemode]
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "com.stridefr.nextbots";
         public const string Name = "NextBots";
-        public const string Version = "0.36.0";
+        public const string Version = "0.36.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -96,21 +95,13 @@ namespace NextBots
             // so a mod that waits for that event silently never starts. Subscribe for the
             // case where it works, but ALWAYS run our own startup as well and let whichever
             // arrives first win - BuildRuntime is idempotent.
-            try
-            {
-                Utilla.Events.GameInitialized += OnGameInitialized;
-            }
-            catch (Exception ex)
-            {
-                Log.LogWarning("Utilla hook unavailable (" + ex.GetType().Name + ").");
-            }
-
             StartCoroutine(SelfStartup());
+            HookUtilla(true);
         }
 
         private void OnDisable()
         {
-            try { Utilla.Events.GameInitialized -= OnGameInitialized; } catch { /* fine */ }
+            HookUtilla(false);
             Teardown();
         }
 
@@ -137,6 +128,43 @@ namespace NextBots
 
             if (_host == null) Log.LogInfo("Local rig found after " + waited + "s; starting up.");
             BuildRuntime();
+        }
+
+        private Delegate _utillaHook;
+
+        /// <summary>Utilla's GameInitialized, by name, when Utilla is loaded. Never required.</summary>
+        private void HookUtilla(bool on)
+        {
+            try
+            {
+                Type events = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (asm.GetName().Name != "Utilla") continue;
+                    events = asm.GetType("Utilla.Events");
+                    break;
+                }
+                var ev = events != null ? events.GetEvent("GameInitialized") : null;
+                if (ev == null) return;
+
+                if (on)
+                {
+                    if (_utillaHook != null) return;
+                    _utillaHook = Delegate.CreateDelegate(ev.EventHandlerType, this,
+                        typeof(Plugin).GetMethod(nameof(OnGameInitialized),
+                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic));
+                    ev.AddEventHandler(null, _utillaHook);
+                }
+                else if (_utillaHook != null)
+                {
+                    ev.RemoveEventHandler(null, _utillaHook);
+                    _utillaHook = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning("Utilla hook unavailable (" + ex.GetType().Name + ").");
+            }
         }
 
         private void OnGameInitialized(object sender, EventArgs e)
@@ -206,25 +234,6 @@ namespace NextBots
             if (_host == null) return;
             Destroy(_host);
             _host = null;
-        }
-
-        // ------------------------------------------------------------------
-        // Utilla hooks. Kept because they still work when Utilla does, but the mod no
-        // longer requires a modded room - see Venue.
-        // ------------------------------------------------------------------
-
-        [Utilla.Attributes.ModdedGamemodeJoin]
-        public void OnModdedRoomJoin(string gamemode)
-        {
-            Venue.UtillaModdedRoom = true;
-            Log.LogInfo("Utilla modded room joined (" + gamemode + ").");
-        }
-
-        [Utilla.Attributes.ModdedGamemodeLeave]
-        public void OnModdedRoomLeave(string gamemode)
-        {
-            Venue.UtillaModdedRoom = false;
-            Log.LogInfo("Utilla modded room left (" + gamemode + ").");
         }
     }
 }
