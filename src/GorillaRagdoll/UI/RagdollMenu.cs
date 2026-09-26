@@ -132,6 +132,13 @@ namespace GorillaRagdoll.UI
             // A font Unity cannot see does not fail: it hands back a font with no letters in it,
             // which draws whatever else is in the shared glyph texture - another mod's on-screen
             // text, in the middle of the menu. So use the default font instead, and say why.
+            // Not installed for everyone - but NextBots carries its own TrueType copy.
+            if (match == null)
+            {
+                _font = GorillaNextBots.Shared.FileFonts.Get(name, m => Plugin.Log.LogInfo(m));
+                if (_font != null) return _font;
+            }
+
             if (match == null)
             {
                 Plugin.Log.LogWarning("[Menu] Windows has no font called '" + name + "' installed for all users, so the " +

@@ -24,7 +24,10 @@ namespace NextBots.Debugging
 
         public KeyCode ToggleKey = KeyCode.F1;
 
-        public bool Visible = true;
+        /// <summary>Hidden until the toggle key brings it up.</summary>
+        public bool Visible = false;
+        private Font _font;
+        private bool _fontTried;
 
         private Rect _window = new Rect(16, 16, 460, 620);
         private Vector2 _scrollSettings;
@@ -33,36 +36,42 @@ namespace NextBots.Debugging
         private string _message = "";
         private float _messageUntil;
         private GUIStyle _mono;
-        private bool _legacyInputDead;
 
         private void Update()
         {
-            if (SafeKeyDown(ToggleKey)) Visible = !Visible;
+            if (UI.Keys.Down(ToggleKey)) Visible = !Visible;
         }
 
-        private bool SafeKeyDown(KeyCode key)
-        {
-            if (_legacyInputDead) return false;
-            try { return Input.GetKeyDown(key); }
-            catch { _legacyInputDead = true; return false; }
-        }
 
         private void OnGUI()
         {
             if (!Visible) return;
 
-            if (_mono == null)
+            // The mod's own font (Plugin's UI Font, Coolvetica by default), for this window only.
+            if (!_fontTried)
             {
-                _mono = new GUIStyle(GUI.skin.label)
-                {
-                    font = GUI.skin.font,
-                    fontSize = 11,
-                    wordWrap = false
-                };
+                _fontTried = true;
+                _font = GorillaNextBots.Shared.FileFonts.Get(Plugin.CfgFont != null ? Plugin.CfgFont.Value : "",
+                                                             m => Plugin.Log.LogInfo(m));
             }
+            var saved = GUI.skin.font;
+            if (_font != null) GUI.skin.font = _font;
+            try
+            {
+                if (_mono == null)
+                {
+                    _mono = new GUIStyle(GUI.skin.label)
+                    {
+                        font = GUI.skin.font,
+                        fontSize = 12,
+                        wordWrap = false
+                    };
+                }
 
-            _window = GUILayout.Window(GetInstanceID(), _window, DrawWindow,
-                "NextBots  " + Plugin.Version + "   (" + ToggleKey + " to hide)");
+                _window = GUILayout.Window(GetInstanceID(), _window, DrawWindow,
+                    "NextBots  " + Plugin.Version + "   (" + ToggleKey + " to hide)");
+            }
+            finally { GUI.skin.font = saved; }
         }
 
         private void DrawWindow(int id)

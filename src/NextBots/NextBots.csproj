@@ -9,7 +9,7 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.35.1</Version>
+    <Version>0.36.0</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -75,6 +75,7 @@
     <Reference Include="System.IO.Compression"><HintPath>$(ManagedDir)\System.IO.Compression.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="System.IO.Compression.FileSystem"><HintPath>$(ManagedDir)\System.IO.Compression.FileSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.UIModule"><HintPath>$(ManagedDir)\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.InputSystem"><HintPath>$(ManagedDir)\Unity.InputSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.TextMeshPro"><HintPath>$(ManagedDir)\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
     <!-- The font engine: building death log fonts from Windows' own at runtime -->
     <Reference Include="UnityEngine.TextCoreFontEngineModule"><HintPath>$(ManagedDir)\UnityEngine.TextCoreFontEngineModule.dll</HintPath><Private>false</Private></Reference>
@@ -87,6 +88,7 @@
        styles. -->
   <ItemGroup>
     <Compile Include="..\Shared\AssetBundle.cs" Link="Shared\AssetBundle.cs" />
+    <Compile Include="..\Shared\FileFonts.cs" Link="Shared\FileFonts.cs" />
     <EmbeddedResource Include="..\..\defaults\com.stridefr.nextbots.cfg" Condition="Exists('..\..\defaults\com.stridefr.nextbots.cfg')" LogicalName="defaults/com.stridefr.nextbots.cfg" />
     <EmbeddedResource Include="..\..\defaults\com.stridefr.nextbots.settings.txt" Condition="Exists('..\..\defaults\com.stridefr.nextbots.settings.txt')" LogicalName="defaults/com.stridefr.nextbots.settings.txt" />
     <EmbeddedResource Include="$(BepInExDir)\plugins\NextBots\hearts\*.png" LogicalName="bundle/hearts/%(Filename)%(Extension)" />

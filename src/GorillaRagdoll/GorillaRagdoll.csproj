@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <Version>0.6.3</Version>
+    <Version>0.6.4</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -71,6 +71,7 @@
   <!-- Starting settings for a new install (see src/Shared/AssetBundle.cs). -->
   <ItemGroup>
     <Compile Include="..\Shared\AssetBundle.cs" Link="Shared\AssetBundle.cs" />
+    <Compile Include="..\Shared\FileFonts.cs" Link="Shared\FileFonts.cs" />
     <EmbeddedResource Include="..\..\defaults\com.stridefr.gorillaragdoll.cfg" Condition="Exists('..\..\defaults\com.stridefr.gorillaragdoll.cfg')" LogicalName="defaults/com.stridefr.gorillaragdoll.cfg" />
   </ItemGroup>
 

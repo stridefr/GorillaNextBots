@@ -34,7 +34,6 @@ namespace NextBots.UI
         private float _nextDiagnostic;
         private string _lastDiagnostic = "";
 
-        private bool _legacyInputDead;
         private bool _loggedFault;
 
         private void Awake()
@@ -102,29 +101,11 @@ namespace NextBots.UI
             return false;
         }
 
-        /// <summary>
-        /// Legacy UnityEngine.Input throws outright when a project has switched to the new
-        /// Input System. Fail once, say so, and never touch it again.
-        /// </summary>
-        private bool SafeKey(KeyCode key)
-        {
-            if (_legacyInputDead) return false;
-            try { return Input.GetKey(key); }
-            catch (System.Exception ex)
-            {
-                _legacyInputDead = true;
-                Plugin.Log.LogWarning("[Input] legacy keyboard input unavailable (" +
-                                      ex.GetType().Name + "); controller only from here.");
-                return false;
-            }
-        }
+        /// <summary>Through <see cref="Keys"/>, which reads the game's new Input System when the old
+        /// one is not there - as it is not in Gorilla Tag.</summary>
+        private bool SafeKey(KeyCode key) => Keys.Held(key);
 
-        private bool SafeKeyDown(KeyCode key)
-        {
-            if (_legacyInputDead) return false;
-            try { return Input.GetKeyDown(key); }
-            catch { _legacyInputDead = true; return false; }
-        }
+        private bool SafeKeyDown(KeyCode key) => Keys.Down(key);
 
         private static bool ReadPollerButton()
         {
