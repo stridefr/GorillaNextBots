@@ -11,8 +11,8 @@ namespace NextBots.UI
     /// </summary>
     public sealed class LivesDisplay : MonoBehaviour
     {
-        private const float HeadSize = 0.07f, WristSize = 0.03f;
-        private const float HeadLift = 0.38f, WristLift = 0.07f;
+        private const float HeadSize = 0.11f, WristSize = 0.045f;
+        private const float HeadLift = 0.42f, WristLift = 0.08f;
 
         private sealed class Row
         {
@@ -124,9 +124,14 @@ namespace NextBots.UI
             _rows.Clear();
         }
 
-        /// <summary>A heart drawn in code: red and solid for a life left, a pale outline for one lost.</summary>
+        /// <summary>The heart picture: Minecraft's, or the player's own, when there are any (see
+        /// <see cref="HeartTextures"/>); otherwise one drawn in code, red and solid for a life left and a
+        /// pale outline for one lost.</summary>
         private static Texture2D Heart(bool full)
         {
+            Texture2D pf, pe;
+            if (HeartTextures.TryGet(out pf, out pe)) return full ? pf : pe;
+
             var cached = full ? _full : _empty;
             if (cached != null) return cached;
 

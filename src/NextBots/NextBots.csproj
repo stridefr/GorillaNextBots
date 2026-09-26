@@ -9,7 +9,7 @@
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.33.0</Version>
+    <Version>0.33.1</Version>
     <DebugType>portable</DebugType>
     <!-- Unity/BepInEx supply everything; don't drag in netstandard shims -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
@@ -72,6 +72,8 @@
     <Reference Include="UnityEngine.JSONSerializeModule"><HintPath>$(ManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.UI"><HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.IO.Compression"><HintPath>$(ManagedDir)\System.IO.Compression.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.IO.Compression.FileSystem"><HintPath>$(ManagedDir)\System.IO.Compression.FileSystem.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.UIModule"><HintPath>$(ManagedDir)\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.TextMeshPro"><HintPath>$(ManagedDir)\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
     <!-- The font engine: building death log fonts from Windows' own at runtime -->

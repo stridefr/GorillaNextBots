@@ -26,7 +26,7 @@ namespace NextBots
     {
         public const string Guid = "com.stridefr.nextbots";
         public const string Name = "NextBots";
-        public const string Version = "0.33.0";
+        public const string Version = "0.33.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
